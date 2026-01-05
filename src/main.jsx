@@ -1,0 +1,14 @@
+// src/main.jsx
+import './index.css';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { Buffer } from 'buffer';
+window.Buffer = Buffer;
+
+import App from './App.jsx'; // ✅ imported as "App"
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />  {/* ✅ render "App", not "LLTYPresale" */}
+  </React.StrictMode>
+);
