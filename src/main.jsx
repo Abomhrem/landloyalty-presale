@@ -1,11 +1,12 @@
 // src/main.jsx
-import './index.css';
+import './config/reown.ts'  // ← this initializes AppKit
+import './index.css'
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Buffer } from 'buffer';
 window.Buffer = Buffer;
 
-import App from './App.jsx'; // ✅ imported as "App"
+import App from './App.tsx'; // ✅ imported as "App"
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
