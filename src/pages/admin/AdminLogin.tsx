@@ -20,7 +20,7 @@ const AdminLogin: React.FC = () => {
     if (success) {
       navigate('/admin/dashboard');
     } else {
-      setError('Invalid credentials. Try: admin@landloyalty.com / admin123');
+      setError('Invalid credentials. Please check your credentials');
     }
     
     setLoading(false);
@@ -62,7 +62,7 @@ const AdminLogin: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-slate-900/50 border border-gray-700 text-white placeholder-gray-500 focus:border-yellow-400 focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                placeholder="admin@landloyalty.com"
+                placeholder="admin@landloyalty.world"
                 required
               />
             </div>
@@ -94,7 +94,7 @@ const AdminLogin: React.FC = () => {
 
           <div className="mt-6 pt-6 border-t border-gray-700">
             <p className="text-xs text-gray-500 text-center">
-              Demo: admin@landloyalty.com / admin123
+              Hint: You, yourself, and a cat
             </p>
           </div>
         </div>
