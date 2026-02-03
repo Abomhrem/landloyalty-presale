@@ -1,0 +1,732 @@
+// ============================================================================
+// PURCHASE SERVICE - PRODUCTION READY
+// ============================================================================
+// Matches the ACTUAL deployed Rust program: lib.rs
+// Program ID: 2oArywYY7xHyoV1xoF9g9QKkyKDHe3rA9kRyu1H8ZQxo
+// 
+// KEY FEATURES:
+// - SOL purchases with Pyth oracle (buy_tokens_sol)
+// - USDC purchases (buy_tokens_usdc)
+// - USDT purchases (buy_tokens_usdt)
+// - NO whitelist requirement
+// - Referral system support
+// ============================================================================
+
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  SystemProgram,
+  SYSVAR_RENT_PUBKEY,
+  LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+} from '@solana/spl-token';
+import { BN } from '@coral-xyz/anchor';
+
+import {
+  BLOCKCHAIN_CONFIG,
+  DECIMALS,
+  TX_CONFIG,
+} from '../config/blockchain-config';
+import { getCurrentPhase, PRESALE_PHASES, PHASE_PRICES } from '../config/presale-timing-config';
+
+// ============================================================================
+// INSTRUCTION DISCRIMINATORS (Calculated from Rust function names)
+// sha256("global:<instruction_name>")[0..8]
+// ============================================================================
+const DISCRIMINATORS = {
+  // buy_tokens_sol: sha256("global:buy_tokens_sol")[0..8]
+  BUY_TOKENS_SOL: Buffer.from([236, 167, 45, 186, 76, 10, 254, 109]),
+  
+  // buy_tokens_usdc: sha256("global:buy_tokens_usdc")[0..8]
+  BUY_TOKENS_USDC: Buffer.from([67, 28, 37, 41, 100, 173, 170, 86]),
+  
+  // buy_tokens_usdt: sha256("global:buy_tokens_usdt")[0..8]
+  BUY_TOKENS_USDT: Buffer.from([33, 175, 12, 240, 185, 132, 255, 231]),
+};
+
+// ============================================================================
+// PYTH ORACLE CONFIGURATION
+// ============================================================================
+// Devnet SOL/USD Pyth feed
+const PYTH_SOL_USD_DEVNET = new PublicKey('7UVimffxr9ow1uXYxsr4LHAcV58mLzhmwaeKvJ1pjLiE');
+
+// Mainnet SOL/USD Pyth feed  
+const PYTH_SOL_USD_MAINNET = new PublicKey('H6ARHf6YXhGYeQfUzQNGk6rDNnLBQKrenN712K4AQJEG');
+
+// Use appropriate feed based on network
+const PYTH_SOL_FEED = BLOCKCHAIN_CONFIG.network === 'mainnet'
+  ? PYTH_SOL_USD_MAINNET
+  : PYTH_SOL_USD_DEVNET;
+
+// Log for debugging
+if (typeof window !== 'undefined') {
+  console.log('🔑 Purchase Service Loaded (Matches Deployed Rust Program)');
+  console.log('  BUY_TOKENS_SOL discriminator:', DISCRIMINATORS.BUY_TOKENS_SOL.toString('hex'));
+  console.log('  BUY_TOKENS_USDC discriminator:', DISCRIMINATORS.BUY_TOKENS_USDC.toString('hex'));
+  console.log('  BUY_TOKENS_USDT discriminator:', DISCRIMINATORS.BUY_TOKENS_USDT.toString('hex'));
+  console.log('  Program ID:', BLOCKCHAIN_CONFIG.programId.toString());
+  console.log('  Pyth SOL Feed:', PYTH_SOL_FEED.toString());
+}
+
+// ============================================================================
+// TYPES
+// ============================================================================
+interface PurchaseParams {
+  userPublicKey: PublicKey;
+  amount: number; // In tokens (LLTY amount with 9 decimals)
+  currency: 'USDC' | 'USDT' | 'SOL';
+  referrer?: PublicKey;
+  connection: Connection;
+}
+
+interface PurchaseResult {
+  success: boolean;
+  transaction?: Transaction;
+  error?: string;
+  computedAmount?: number;
+  accounts?: {
+    buyer: PublicKey;
+    buyerData: PublicKey;
+    paymentVault?: PublicKey;
+  };
+}
+
+// ============================================================================
+// PDA DERIVATION HELPERS (Match Rust program seeds)
+// ============================================================================
+
+/**
+ * Get Presale State PDA
+ * Seeds: ["presale", authority]
+ */
+export const getPresaleStatePDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('presale'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get Buyer Data PDA
+ * Seeds: ["buyer", user_pubkey]
+ */
+export const getBuyerDataPDA = (userPublicKey: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('buyer'), userPublicKey.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get Presale Authority PDA
+ * Seeds: ["presale_authority", authority]
+ */
+export const getPresaleAuthorityPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('presale_authority'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get Presale Vault (SOL) PDA
+ * Seeds: ["presale_vault", authority]
+ */
+export const getPresaleVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('presale_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get USDC Vault PDA
+ * Seeds: ["usdc_vault", authority]
+ */
+export const getUsdcVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('usdc_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get USDT Vault PDA
+ * Seeds: ["usdt_vault", authority]
+ */
+export const getUsdtVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('usdt_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get authority from presale account data
+ */
+const getAuthorityFromPresale = async (connection: Connection): Promise<PublicKey> => {
+  const presaleAccount = await connection.getAccountInfo(BLOCKCHAIN_CONFIG.presalePda);
+  if (!presaleAccount) {
+    throw new Error('Presale account not found');
+  }
+  // Authority is at offset 8 (after 8-byte discriminator)
+  return new PublicKey(presaleAccount.data.slice(8, 40));
+};
+
+// ============================================================================
+// BUILD SOL PURCHASE TRANSACTION
+// ============================================================================
+// Account order from Rust BuyTokensSol struct:
+// 1. presale (mut)
+// 2. buyer_data (mut, init_if_needed)
+// 3. referrer_data (UncheckedAccount)
+// 4. presale_vault (mut, SystemAccount)
+// 5. presale_authority (mut, UncheckedAccount)
+// 6. pyth_sol_feed (PriceUpdateV2)
+// 7. user_token_account (mut, init_if_needed)
+// 8. presale_token_mint (Mint)
+// 9. user (mut, Signer)
+// 10. system_program
+// 11. token_program
+// 12. associated_token_program
+// 13. rent
+// ============================================================================
+
+/**
+ * Get Token Vault PDA
+ * Seeds: ["token_vault", authority]
+ */
+export const getTokenVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('token_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+export const buildSOLPurchaseTransaction = async (
+  params: PurchaseParams
+): Promise<PurchaseResult> => {
+  try {
+    const { userPublicKey, amount, referrer, connection } = params;
+
+    console.log('🔨 Building SOL purchase transaction...');
+    console.log('  User:', userPublicKey.toString());
+    //console.log('  Amount:', amount, 'LLTY tokens');
+    console.log('  Amount:', amount, 'SOL');
+    console.log('  Referrer:', referrer?.toString() || 'None');
+
+    // ────────────────────────────────────────────────
+    // 1. Get authority from presale account
+    // ────────────────────────────────────────────────
+    const authority = await getAuthorityFromPresale(connection);
+    console.log('  Authority:', authority.toString());
+
+    // ────────────────────────────────────────────────
+    // 2. Calculate token amount in smallest unit (9 decimals)
+    // ────────────────────────────────────────────────
+    const tokenAmountInSmallestUnit = Math.floor(amount * Math.pow(10, DECIMALS.LLTY));
+    console.log('  Token amount (raw):', tokenAmountInSmallestUnit);
+    
+    // ────────────────────────────────────────────────
+    // 3. Derive all PDAs
+    // ────────────────────────────────────────────────
+    const [buyerDataPda] = getBuyerDataPDA(userPublicKey);
+    const [presaleAuthorityPda] = getPresaleAuthorityPDA(authority);
+    const [presaleVaultPda] = getPresaleVaultPDA(authority);
+    const [tokenVaultPda] = getTokenVaultPDA(authority);
+
+    // Referrer data PDA (use buyer's own PDA if no referrer)
+    const referrerDataPda = referrer
+      ? getBuyerDataPDA(referrer)[0]
+      : buyerDataPda;
+
+    console.log('  Buyer Data PDA:', buyerDataPda.toString());
+    console.log('  Presale Authority PDA:', presaleAuthorityPda.toString());
+    console.log('  Presale Vault PDA:', presaleVaultPda.toString());
+    console.log('  Referrer Data PDA:', referrerDataPda.toString());
+
+    // ────────────────────────────────────────────────
+    // 4. Get User's LLTY Token Account (ATA)
+    // ────────────────────────────────────────────────
+    const userLltyAta = await getAssociatedTokenAddress(
+      BLOCKCHAIN_CONFIG.lltyMint,
+      userPublicKey
+    );
+    console.log('  User LLTY ATA:', userLltyAta.toString());
+
+    // ────────────────────────────────────────────────
+    // 5. Build Transaction
+    // ────────────────────────────────────────────────
+    const tx = new Transaction();
+
+    // Create LLTY ATA if it doesn't exist
+    const lltyAtaInfo = await connection.getAccountInfo(userLltyAta);
+    if (!lltyAtaInfo) {
+      console.log('  Creating LLTY token account...');
+      tx.add(
+        createAssociatedTokenAccountInstruction(
+          userPublicKey,
+          userLltyAta,
+          userPublicKey,
+          BLOCKCHAIN_CONFIG.lltyMint
+        )
+      );
+    }
+
+    // ────────────────────────────────────────────────
+    // 6. Build Instruction Data
+    // ────────────────────────────────────────────────
+    // Layout:
+    // [8 bytes discriminator]
+    // [8 bytes amount (u64 LE)]
+    // [1 byte Option tag + 32 bytes pubkey if Some]
+    
+    const amountBytes = new BN(tokenAmountInSmallestUnit).toArrayLike(Buffer, 'le', 8);
+    
+    
+    let referrerBytes: Buffer;
+    if (referrer) {
+      referrerBytes = Buffer.concat([
+        Buffer.from([1]), // Some
+        referrer.toBuffer()
+      ]);
+    } else {
+      referrerBytes = Buffer.from([0]); // None
+    }
+
+    const instructionData = Buffer.concat([
+      DISCRIMINATORS.BUY_TOKENS_SOL,
+      amountBytes,
+      referrerBytes
+    ]);
+
+    console.log('  Discriminator:', DISCRIMINATORS.BUY_TOKENS_SOL.toString('hex'));
+    console.log('  Amount bytes:', amountBytes.toString('hex'));
+    console.log('  Instruction data length:', instructionData.length);
+
+    // ────────────────────────────────────────────────
+    // 7. Build Accounts Array (EXACT ORDER FROM RUST)
+    // ────────────────────────────────────────────────
+    const keys = [
+      // 1. presale (mut)
+      { pubkey: BLOCKCHAIN_CONFIG.presalePda, isSigner: false, isWritable: true },
+      
+      // 2. buyer_data (mut)
+      { pubkey: buyerDataPda, isSigner: false, isWritable: true },
+      
+      // 3. referrer_data (immutable UncheckedAccount)
+      { pubkey: referrerDataPda, isSigner: false, isWritable: false },
+      
+      // 4. presale_vault (mut, receives SOL)
+      { pubkey: presaleVaultPda, isSigner: false, isWritable: true },
+      
+      // 5. presale_authority (mut)
+      { pubkey: presaleAuthorityPda, isSigner: false, isWritable: true },
+      
+      // 6. pyth_sol_feed
+      { pubkey: PYTH_SOL_FEED, isSigner: false, isWritable: false },
+      
+      // 7. user_token_account (mut, receives LLTY)
+      { pubkey: userLltyAta, isSigner: false, isWritable: true },
+
+      // 8. presale_token_mint (LLTY mint)
+      { pubkey: BLOCKCHAIN_CONFIG.lltyMint, isSigner: false, isWritable: false },
+      
+      // 9. token_vault (mut, source of LLTY tokens)
+      { pubkey: tokenVaultPda, isSigner: false, isWritable: true },
+
+      // 10. user (mut, signer, pays SOL)
+      { pubkey: userPublicKey, isSigner: true, isWritable: true },
+      
+      // 10. system_program
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      
+      // 11. token_program
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      
+      // 12. associated_token_program
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      
+      // 13. rent
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ];
+
+    console.log('✅ All 14 accounts prepared for SOL purchase');
+    console.log('  Accounts:');
+    keys.forEach((k, i) => console.log(`    ${i + 1}. ${k.pubkey.toString().slice(0, 8)}... (writable: ${k.isWritable}, signer: ${k.isSigner})`));
+
+    // ────────────────────────────────────────────────
+    // 8. Create Instruction
+    // ────────────────────────────────────────────────
+    const purchaseInstruction = new TransactionInstruction({
+      keys,
+      programId: BLOCKCHAIN_CONFIG.programId,
+      data: instructionData,
+    });
+
+    tx.add(purchaseInstruction);
+
+    // ────────────────────────────────────────────────
+    // 9. Set Transaction Properties
+    // ────────────────────────────────────────────────
+    tx.feePayer = userPublicKey;
+    const { blockhash } = await connection.getLatestBlockhash(TX_CONFIG.COMMITMENT);
+    tx.recentBlockhash = blockhash;
+
+    console.log('✅ SOL purchase transaction built successfully');
+
+    return {
+      success: true,
+      transaction: tx,
+      accounts: {
+        buyer: userPublicKey,
+        buyerData: buyerDataPda,
+        paymentVault: presaleVaultPda,
+      },
+    };
+
+  } catch (error: any) {
+    console.error('❌ Error building SOL purchase transaction:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error',
+    };
+  }
+};
+
+// ============================================================================
+// BUILD USDC PURCHASE TRANSACTION
+// ============================================================================
+// Account order from Rust BuyTokensUsdc struct:
+// 1. presale (mut)
+// 2. buyer_data (mut, init_if_needed)
+// 3. referrer_data (UncheckedAccount)
+// 4. usdc_vault (mut)
+// 5. presale_authority (mut)
+// 6. user_token_account (mut, LLTY ATA)
+// 7. user_usdc_account (mut, USDC ATA)
+// 8. presale_token_mint (LLTY mint)
+// 9. usdc_mint
+// 10. user (mut, signer)
+// 11. system_program
+// 12. token_program
+// 13. associated_token_program
+// 14. rent
+// ============================================================================
+export const buildUSDCPurchaseTransaction = async (
+  params: PurchaseParams
+): Promise<PurchaseResult> => {
+  try {
+    const { userPublicKey, amount, referrer, connection } = params;
+
+    console.log('🔨 Building USDC purchase transaction...');
+    console.log('  User:', userPublicKey.toString());
+    console.log('  Amount:', amount, 'LLTY tokens');
+
+    // Get authority
+    const authority = await getAuthorityFromPresale(connection);
+
+    // Calculate amounts
+    const tokenAmountInSmallestUnit = Math.floor(amount * Math.pow(10, DECIMALS.LLTY));
+
+    // Derive PDAs
+    const [buyerDataPda] = getBuyerDataPDA(userPublicKey);
+    const [presaleAuthorityPda] = getPresaleAuthorityPDA(authority);
+    
+    // USDC vault uses different seed: "usdc_vault"
+    const [presaleUsdcVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('usdc_vault'), authority.toBuffer()],
+      BLOCKCHAIN_CONFIG.programId
+    );
+
+    // Token vault for LLTY transfers
+    const [tokenVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('token_vault'), authority.toBuffer()],
+      BLOCKCHAIN_CONFIG.programId
+    );
+    
+    console.log('  USDC Vault PDA:', presaleUsdcVaultPda.toString());
+    console.log('  Token Vault PDA:', tokenVaultPda.toString());
+
+    const referrerDataPda = referrer ? getBuyerDataPDA(referrer)[0] : buyerDataPda;
+
+    // Get ATAs
+    const userLltyAta = await getAssociatedTokenAddress(BLOCKCHAIN_CONFIG.lltyMint, userPublicKey);
+    const userUsdcAta = await getAssociatedTokenAddress(BLOCKCHAIN_CONFIG.usdcMint, userPublicKey);
+
+    const tx = new Transaction();
+
+    // Create LLTY ATA if needed
+    const lltyAtaInfo = await connection.getAccountInfo(userLltyAta);
+    if (!lltyAtaInfo) {
+      tx.add(createAssociatedTokenAccountInstruction(userPublicKey, userLltyAta, userPublicKey, BLOCKCHAIN_CONFIG.lltyMint));
+    }
+
+    // Create USDC ATA if needed
+    const usdcAtaInfo = await connection.getAccountInfo(userUsdcAta);
+    if (!usdcAtaInfo) {
+      tx.add(createAssociatedTokenAccountInstruction(userPublicKey, userUsdcAta, userPublicKey, BLOCKCHAIN_CONFIG.usdcMint));
+    }
+
+    // Build instruction data
+    const amountBytes = new BN(tokenAmountInSmallestUnit).toArrayLike(Buffer, 'le', 8);
+    const referrerBytes = referrer
+      ? Buffer.concat([Buffer.from([1]), referrer.toBuffer()])
+      : Buffer.from([0]);
+
+    const instructionData = Buffer.concat([
+      DISCRIMINATORS.BUY_TOKENS_USDC,
+      amountBytes,
+      referrerBytes
+    ]);
+
+    // Build accounts (14 accounts)
+    const keys = [
+      { pubkey: BLOCKCHAIN_CONFIG.presalePda, isSigner: false, isWritable: true },
+      { pubkey: buyerDataPda, isSigner: false, isWritable: true },
+      { pubkey: referrerDataPda, isSigner: false, isWritable: false },
+      { pubkey: presaleUsdcVaultPda, isSigner: false, isWritable: true },
+      { pubkey: presaleAuthorityPda, isSigner: false, isWritable: true },
+      { pubkey: userLltyAta, isSigner: false, isWritable: true },
+      { pubkey: userUsdcAta, isSigner: false, isWritable: true },
+      { pubkey: BLOCKCHAIN_CONFIG.lltyMint, isSigner: false, isWritable: false },
+      { pubkey: tokenVaultPda, isSigner: false, isWritable: true },
+      { pubkey: BLOCKCHAIN_CONFIG.usdcMint, isSigner: false, isWritable: false },
+      { pubkey: userPublicKey, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ];
+
+    const purchaseInstruction = new TransactionInstruction({
+      keys,
+      programId: BLOCKCHAIN_CONFIG.programId,
+      data: instructionData,
+    });
+
+    tx.add(purchaseInstruction);
+    tx.feePayer = userPublicKey;
+    const { blockhash } = await connection.getLatestBlockhash(TX_CONFIG.COMMITMENT);
+    tx.recentBlockhash = blockhash;
+
+    console.log('✅ USDC purchase transaction built successfully');
+
+    return {
+      success: true,
+      transaction: tx,
+      accounts: {
+        buyer: userPublicKey,
+        buyerData: buyerDataPda,
+        paymentVault: presaleUsdcVaultPda,
+      },
+    };
+
+  } catch (error: any) {
+    console.error('❌ Error building USDC purchase transaction:', error);
+    return { success: false, error: error.message || 'Unknown error' };
+  }
+};
+
+// ============================================================================
+// BUILD USDT PURCHASE TRANSACTION
+// ============================================================================
+export const buildUSDTPurchaseTransaction = async (
+  params: PurchaseParams
+): Promise<PurchaseResult> => {
+  try {
+    const { userPublicKey, amount, referrer, connection } = params;
+
+    console.log('🔨 Building USDT purchase transaction...');
+
+    const authority = await getAuthorityFromPresale(connection);
+    const tokenAmountInSmallestUnit = Math.floor(amount * Math.pow(10, DECIMALS.LLTY));
+
+    const [buyerDataPda] = getBuyerDataPDA(userPublicKey);
+    const [presaleAuthorityPda] = getPresaleAuthorityPDA(authority);
+    
+    // USDT vault
+    const [usdtVaultPda] = getUsdtVaultPDA(authority);
+     
+     // Token vault for LLTY transfers
+    const [tokenVaultPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('token_vault'), authority.toBuffer()],
+      BLOCKCHAIN_CONFIG.programId
+    );
+    
+    const referrerDataPda = referrer ? getBuyerDataPDA(referrer)[0] : buyerDataPda;
+
+    const userLltyAta = await getAssociatedTokenAddress(BLOCKCHAIN_CONFIG.lltyMint, userPublicKey);
+    const userUsdtAta = await getAssociatedTokenAddress(BLOCKCHAIN_CONFIG.usdtMint, userPublicKey);
+
+    const tx = new Transaction();
+
+    const lltyAtaInfo = await connection.getAccountInfo(userLltyAta);
+    if (!lltyAtaInfo) {
+      tx.add(createAssociatedTokenAccountInstruction(userPublicKey, userLltyAta, userPublicKey, BLOCKCHAIN_CONFIG.lltyMint));
+    }
+
+    const usdtAtaInfo = await connection.getAccountInfo(userUsdtAta);
+    if (!usdtAtaInfo) {
+      tx.add(createAssociatedTokenAccountInstruction(userPublicKey, userUsdtAta, userPublicKey, BLOCKCHAIN_CONFIG.usdtMint));
+    }
+
+    const amountBytes = new BN(tokenAmountInSmallestUnit).toArrayLike(Buffer, 'le', 8);
+    const referrerBytes = referrer
+      ? Buffer.concat([Buffer.from([1]), referrer.toBuffer()])
+      : Buffer.from([0]);
+
+    const instructionData = Buffer.concat([
+      DISCRIMINATORS.BUY_TOKENS_USDT,
+      amountBytes,
+      referrerBytes
+    ]);
+
+    // 14 accounts for USDT (same structure as USDC but different vault)
+    const keys = [
+      { pubkey: BLOCKCHAIN_CONFIG.presalePda, isSigner: false, isWritable: true },
+      { pubkey: buyerDataPda, isSigner: false, isWritable: true },
+      { pubkey: referrerDataPda, isSigner: false, isWritable: false },
+      { pubkey: usdtVaultPda, isSigner: false, isWritable: true },
+      { pubkey: presaleAuthorityPda, isSigner: false, isWritable: true },
+      { pubkey: userLltyAta, isSigner: false, isWritable: true },
+      { pubkey: userUsdtAta, isSigner: false, isWritable: true },
+      { pubkey: BLOCKCHAIN_CONFIG.lltyMint, isSigner: false, isWritable: false },
+      { pubkey: BLOCKCHAIN_CONFIG.usdtMint, isSigner: false, isWritable: false },
+      { pubkey: tokenVaultPda, isSigner: false, isWritable: true },
+      { pubkey: userPublicKey, isSigner: true, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ];
+
+    const purchaseInstruction = new TransactionInstruction({
+      keys,
+      programId: BLOCKCHAIN_CONFIG.programId,
+      data: instructionData,
+    });
+
+    tx.add(purchaseInstruction);
+    tx.feePayer = userPublicKey;
+    const { blockhash } = await connection.getLatestBlockhash(TX_CONFIG.COMMITMENT);
+    tx.recentBlockhash = blockhash;
+
+    console.log('✅ USDT purchase transaction built successfully');
+
+    return {
+      success: true,
+      transaction: tx,
+      accounts: {
+        buyer: userPublicKey,
+        buyerData: buyerDataPda,
+        paymentVault: usdtVaultPda,
+      },
+    };
+
+  } catch (error: any) {
+    console.error('❌ Error building USDT purchase transaction:', error);
+    return { success: false, error: error.message || 'Unknown error' };
+  }
+};
+
+// ============================================================================
+// UNIFIED BUILD PURCHASE TRANSACTION
+// ============================================================================
+export const buildPurchaseTransaction = async (
+  params: PurchaseParams
+): Promise<PurchaseResult> => {
+  switch (params.currency) {
+    case 'SOL':
+      return buildSOLPurchaseTransaction(params);
+    case 'USDC':
+      return buildUSDCPurchaseTransaction(params);
+    case 'USDT':
+      return buildUSDTPurchaseTransaction(params);
+    default:
+      return { success: false, error: `Unsupported currency: ${params.currency}` };
+  }
+};
+
+// ============================================================================
+// EXECUTE PURCHASE (Sign & Send)
+// ============================================================================
+export const executePurchase = async (
+  transaction: Transaction,
+  walletProvider: any,
+  connection: Connection
+): Promise<{ success: boolean; signature?: string; error?: string }> => {
+  try {
+    console.log('📤 Signing and sending transaction...');
+
+    const signed = await walletProvider.signTransaction(transaction);
+
+    const signature = await connection.sendRawTransaction(
+      signed.serialize(),
+      {
+        skipPreflight: TX_CONFIG.SKIP_PREFLIGHT,
+        preflightCommitment: TX_CONFIG.PREFLIGHT_COMMITMENT,
+        maxRetries: TX_CONFIG.MAX_RETRIES,
+      }
+    );
+
+    console.log('📝 Transaction sent:', signature);
+
+    console.log('⏳ Confirming transaction...');
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash(TX_CONFIG.COMMITMENT);
+
+    const confirmation = await connection.confirmTransaction(
+      { signature, blockhash, lastValidBlockHeight },
+      TX_CONFIG.COMMITMENT
+    );
+
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log('✅ Transaction confirmed!');
+    return { success: true, signature };
+
+  } catch (error: any) {
+    console.error('❌ Transaction execution failed:', error);
+    return { success: false, error: error.message || 'Transaction failed' };
+  }
+};
+
+  
+// ============================================================================
+// HELPER: Get current phase and price (Updated to use centralized timing)
+// ============================================================================
+export const getCurrentPhaseInfo = () => {
+  const phaseInfo = getCurrentPhase();
+  
+  return {
+    phase: phaseInfo.phaseNumber,
+    price: phaseInfo.price,
+    ended: phaseInfo.ended,
+    isActive: phaseInfo.isActive,
+    phaseName: phaseInfo.phase,
+  };
+};
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+export default {
+  buildPurchaseTransaction,
+  buildSOLPurchaseTransaction,
+  buildUSDCPurchaseTransaction,
+  buildUSDTPurchaseTransaction,
+  executePurchase,
+  getCurrentPhaseInfo,
+  getBuyerDataPDA,
+  getPresaleStatePDA,
+  getPresaleAuthorityPDA,
+  getPresaleVaultPDA,
+};

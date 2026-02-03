@@ -25,7 +25,7 @@ import idl from './landloyalty_presale_idl.js';
 const NETWORK = 'devnet';
 const RPC_ENDPOINT = NETWORK === 'mainnet-beta'
   ? 'https://api.mainnet-beta.solana.com'
-  : 'https://api.devnet.solana.com';
+  : 'https://devnet.helius-rpc.com/?api-key=8fd20322-0155-4b78-874f-837235298a26';
 
 const PROGRAM_ID = new PublicKey('2oArywYY7xHyoV1xoF9g9QKkyKDHe3rA9kRyu1H8ZQxo');
 const PRESALE_STATE_PDA = new PublicKey('9b55xaKqELt1fYHn6MXA9vETy4ngTPxSZZ1SJmTQN1Kr');

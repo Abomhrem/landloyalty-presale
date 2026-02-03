@@ -1,0 +1,246 @@
+import React, { useState, useEffect } from 'react';
+import adminService from '../../services/adminService';
+
+const Dashboard: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalRaised: 0,
+    totalInvestors: 0,
+    avgInvestment: 0,
+    activeWallets: 0
+  });
+  const [treasuryBalances, setTreasuryBalances] = useState({
+    sol: 0,
+    usdc: 0,
+    usdt: 0,
+    llty: 0
+  });
+  const [presaleConfig, setPresaleConfig] = useState({
+    startDate: '2026-02-01T00:00',
+    vipDuration: 48,
+    phase1Price: 0.004,
+    phase2Price: 0.005,
+    phase3Price: 0.006,
+    isPaused: false
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(loadDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Loading dashboard data...');
+      
+      const [statsData, treasuryData, configData] = await Promise.all([
+        adminService.fetchPresaleStats(),
+        adminService.fetchTreasuryTotals(),
+        adminService.fetchPresaleConfig()
+      ]);
+
+      setStats({
+        totalRaised: statsData.totalRaised,
+        totalInvestors: statsData.totalInvestors,
+        avgInvestment: statsData.avgInvestment,
+        activeWallets: statsData.activeWallets
+      });
+
+      setTreasuryBalances(treasuryData);
+      
+      setPresaleConfig({
+        startDate: new Date(configData.startDate).toISOString().slice(0, 16),
+        vipDuration: configData.vipDuration,
+        phase1Price: configData.prices.phase1,
+        phase2Price: configData.prices.phase2,
+        phase3Price: configData.prices.phase3,
+        isPaused: false
+      });
+
+      console.log('✅ Dashboard data loaded');
+    } catch (error) {
+      console.error('❌ Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statsDisplay = [
+    { 
+      label: 'Total Raised', 
+      value: loading ? '...' : `$${stats.totalRaised.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+      change: `${stats.totalInvestors} investors`, 
+      icon: '💰',
+      color: 'emerald'
+    },
+    { 
+      label: 'Total Investors', 
+      value: loading ? '...' : stats.totalInvestors.toLocaleString(), 
+      change: 'Unique wallets', 
+      icon: '👥',
+      color: 'blue'
+    },
+    { 
+      label: 'Avg Investment', 
+      value: loading ? '...' : `$${stats.avgInvestment.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
+      change: 'Per wallet', 
+      icon: '📊',
+      color: 'purple'
+    },
+    { 
+      label: 'Active Wallets', 
+      value: loading ? '...' : stats.activeWallets.toLocaleString(), 
+      change: 'Transactions', 
+      icon: '⚡',
+      color: 'yellow'
+    },
+  ];
+
+  const getColorClasses = (color: string) => {
+    const colors = {
+      emerald: 'from-emerald-500/20 to-emerald-600/20 border-emerald-500/30',
+      blue: 'from-blue-500/20 to-blue-600/20 border-blue-500/30',
+      purple: 'from-purple-500/20 to-purple-600/20 border-purple-500/30',
+      yellow: 'from-yellow-500/20 to-yellow-600/20 border-yellow-500/30'
+    };
+    return colors[color as keyof typeof colors];
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Refresh Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-black text-white">Real-Time Dashboard</h2>
+          <p className="text-sm text-gray-400 mt-1">Live data from Solana blockchain</p>
+        </div>
+        <button
+          onClick={loadDashboardData}
+          disabled={loading}
+          className="px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900 font-bold hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-2"
+        >
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+              Loading...
+            </>
+          ) : (
+            <>
+              🔄 Refresh Data
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsDisplay.map((stat, i) => (
+          <div 
+            key={i}
+            className={`rounded-2xl p-6 border backdrop-blur-sm bg-gradient-to-br ${getColorClasses(stat.color)} hover:scale-105 transition-transform duration-200 shadow-xl`}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="text-4xl">{stat.icon}</div>
+              <div className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
+                <span className="text-xs font-bold text-white">{stat.change}</span>
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-gray-400 mb-2">{stat.label}</p>
+            <p className="text-4xl font-black text-white tracking-tight">{stat.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Presale Configuration */}
+      <div className="rounded-2xl p-8 border border-yellow-500/20 bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl shadow-2xl">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg">
+            <span className="text-3xl">🎯</span>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white">Presale Configuration</h2>
+            <p className="text-sm text-gray-400 font-medium">Current blockchain settings</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <label className="block text-sm font-bold text-gray-300 mb-3">Start Date & Time</label>
+            <input
+              type="datetime-local"
+              value={presaleConfig.startDate}
+              readOnly
+              className="w-full px-5 py-4 rounded-xl bg-slate-950/50 border-2 border-gray-700/50 text-white text-base font-semibold"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-300 mb-3">VIP Period (hours)</label>
+            <input
+              type="number"
+              value={presaleConfig.vipDuration}
+              readOnly
+              className="w-full px-5 py-4 rounded-xl bg-slate-950/50 border-2 border-gray-700/50 text-white text-base font-semibold"
+            />
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-gray-300 mb-3">Phase Pricing (USD)</label>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Phase 1', value: presaleConfig.phase1Price },
+              { label: 'Phase 2', value: presaleConfig.phase2Price },
+              { label: 'Phase 3', value: presaleConfig.phase3Price }
+            ].map((phase, idx) => (
+              <div key={idx}>
+                <div className="text-xs font-bold text-gray-400 mb-2">{phase.label}</div>
+                <input
+                  type="text"
+                  value={`$${phase.value}`}
+                  readOnly
+                  className="w-full px-4 py-3 rounded-xl bg-slate-950/50 border-2 border-gray-700/50 text-white text-base font-bold"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Treasury Balances */}
+      <div className="rounded-2xl p-8 border border-yellow-500/20 bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl shadow-2xl">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg">
+            <span className="text-3xl">💰</span>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white">Treasury Balances</h2>
+            <p className="text-sm text-gray-400 font-medium">Live from blockchain • Auto-refresh every 30s</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[
+            { label: 'SOL Balance', value: treasuryBalances.sol, unit: 'SOL', color: 'from-purple-500/10 to-purple-600/10 border-purple-500/20' },
+            { label: 'USDC Balance', value: treasuryBalances.usdc, unit: 'USDC', color: 'from-blue-500/10 to-blue-600/10 border-blue-500/20' },
+            { label: 'USDT Balance', value: treasuryBalances.usdt, unit: 'USDT', color: 'from-green-500/10 to-green-600/10 border-green-500/20' },
+            { label: 'LLTY Balance', value: treasuryBalances.llty, unit: 'LLTY', color: 'from-yellow-500/10 to-yellow-600/10 border-yellow-500/20' }
+          ].map((item, idx) => (
+            <div key={idx} className={`bg-gradient-to-br ${item.color} rounded-2xl p-6 border`}>
+              <p className="text-sm text-gray-400 font-bold mb-3">{item.label}</p>
+              <p className="text-4xl font-black text-white mb-2">
+                {loading ? '...' : item.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-gray-500 font-semibold">{item.unit}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

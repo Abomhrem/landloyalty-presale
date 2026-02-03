@@ -1,0 +1,228 @@
+// ============================================================================
+// PRESALE TIMING HOOK - Real-time Phase & Countdown Updates
+// ============================================================================
+// Enterprise-grade React hook for managing presale timing state
+// Automatically updates every second, provides phase info, and handles cleanup
+// ============================================================================
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  getCurrentPhase,
+  getCurrentPhaseTimeRemaining,
+  getTimeRemaining,
+  PRESALE_PHASES,
+  type PhaseInfo,
+  type TimeRemaining,
+  type PresalePhase,
+} from '../config/presale-timing-config';
+
+// ============================================================================
+// HOOK INTERFACE
+// ============================================================================
+
+export interface UsePresaleTimingReturn {
+  // Current phase information
+  currentPhase: PhaseInfo;
+  phaseName: PresalePhase;
+  phaseNumber: number;
+  currentPrice: number;
+  
+  // Time remaining
+  timeRemaining: TimeRemaining;
+  timeRemainingFormatted: string;
+  
+  // Status flags
+  isActive: boolean;
+  hasStarted: boolean;
+  hasEnded: boolean;
+  isVipPhase: boolean;
+  
+  // Timestamps
+  currentTime: number;
+  phaseStartTime: number;
+  phaseEndTime: number;
+  presaleEndTime: number;
+  
+  // Progress
+  phaseProgress: number; // 0-100 percentage
+  
+  // Utilities
+  refresh: () => void;
+}
+
+// ============================================================================
+// MAIN HOOK
+// ============================================================================
+
+/**
+ * Hook for managing presale timing and countdown
+ * Updates every second automatically
+ * 
+ * @param updateInterval - How often to update (default: 1000ms)
+ * @returns Presale timing state and utilities
+ */
+export function usePresaleTiming(updateInterval: number = 1000): UsePresaleTimingReturn {
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  
+  // Update current time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, updateInterval);
+    
+    return () => clearInterval(interval);
+  }, [updateInterval]);
+  
+  // Memoized phase information (recalculates when time changes)
+  const currentPhase = useMemo(() => getCurrentPhase(currentTime), [currentTime]);
+  
+  // Memoized time remaining (recalculates when time changes)
+  const timeRemaining = useMemo(
+    () => getCurrentPhaseTimeRemaining(currentTime),
+    [currentTime]
+  );
+  
+  // Format time remaining as string
+  const timeRemainingFormatted = useMemo(() => {
+    const { days, hours, minutes, seconds } = timeRemaining;
+    
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  }, [timeRemaining]);
+  
+  // Calculate phase progress percentage
+  const phaseProgress = useMemo(() => {
+    if (!currentPhase.isActive) return 0;
+    
+    const phaseDuration = currentPhase.endTime - currentPhase.startTime;
+    const phaseElapsed = currentTime - currentPhase.startTime;
+    
+    return Math.min(100, Math.max(0, (phaseElapsed / phaseDuration) * 100));
+  }, [currentPhase, currentTime]);
+  
+  // Manual refresh function
+  const refresh = useCallback(() => {
+    setCurrentTime(Date.now());
+  }, []);
+  
+  // Derived status flags
+  const hasStarted = currentTime >= PRESALE_PHASES.PRESALE_START;
+  const hasEnded = currentTime >= PRESALE_PHASES.PRESALE_END;
+  const isVipPhase = currentPhase.phase === 'VIP';
+  
+  return {
+    // Phase info
+    currentPhase,
+    phaseName: currentPhase.phase,
+    phaseNumber: currentPhase.phaseNumber,
+    currentPrice: currentPhase.price,
+    
+    // Time remaining
+    timeRemaining,
+    timeRemainingFormatted,
+    
+    // Status
+    isActive: currentPhase.isActive,
+    hasStarted,
+    hasEnded,
+    isVipPhase,
+    
+    // Timestamps
+    currentTime,
+    phaseStartTime: currentPhase.startTime,
+    phaseEndTime: currentPhase.endTime,
+    presaleEndTime: PRESALE_PHASES.PRESALE_END,
+    
+    // Progress
+    phaseProgress,
+    
+    // Utils
+    refresh,
+  };
+}
+
+// ============================================================================
+// COUNTDOWN TIMER HOOK (Simpler version)
+// ============================================================================
+
+export interface UseCountdownReturn {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  total: number;
+  isExpired: boolean;
+  formatted: string;
+}
+
+/**
+ * Simple countdown timer hook
+ * 
+ * @param targetTime - Target timestamp
+ * @returns Countdown state
+ */
+export function useCountdown(targetTime: number): UseCountdownReturn {
+  const [currentTime, setCurrentTime] = useState<number>(Date.now());
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  const timeRemaining = useMemo(
+    () => getTimeRemaining(targetTime, currentTime),
+    [targetTime, currentTime]
+  );
+  
+  const formatted = useMemo(() => {
+    const { days, hours, minutes, seconds } = timeRemaining;
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  }, [timeRemaining]);
+  
+  return {
+    ...timeRemaining,
+    isExpired: timeRemaining.total === 0,
+    formatted,
+  };
+}
+
+// ============================================================================
+// PHASE CHANGE DETECTION HOOK
+// ============================================================================
+
+/**
+ * Hook that triggers a callback when phase changes
+ * 
+ * @param onPhaseChange - Callback when phase changes
+ */
+export function usePhaseChangeDetection(
+  onPhaseChange?: (newPhase: PhaseInfo, oldPhase: PhaseInfo) => void
+) {
+  const { currentPhase } = usePresaleTiming();
+  const [previousPhase, setPreviousPhase] = useState<PhaseInfo>(currentPhase);
+  
+  useEffect(() => {
+    if (currentPhase.phase !== previousPhase.phase) {
+      onPhaseChange?.(currentPhase, previousPhase);
+      setPreviousPhase(currentPhase);
+    }
+  }, [currentPhase, previousPhase, onPhaseChange]);
+  
+  return { currentPhase, previousPhase };
+}
+
+// ============================================================================
+// EXPORT ALL
+// ============================================================================
+
+export default usePresaleTiming;

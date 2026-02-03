@@ -1,0 +1,700 @@
+{
+  "version": "0.1.0",
+  "name": "landloyalty_presale",
+  "instructions": [
+    {
+      "name": "initializePresale",
+      "accounts": [
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "presalePdaAuthority", "isMut": false, "isSigner": false},
+        {"name": "solVault", "isMut": true, "isSigner": false},
+        {"name": "usdcVault", "isMut": true, "isSigner": false},
+        {"name": "usdtVault", "isMut": true, "isSigner": false},
+        {"name": "tokenVault", "isMut": true, "isSigner": false},
+        {"name": "tokenMint", "isMut": false, "isSigner": false},
+        {"name": "usdcMint", "isMut": false, "isSigner": false},
+        {"name": "usdtMint", "isMut": false, "isSigner": false},
+        {"name": "teamWallet", "isMut": false, "isSigner": false},
+        {"name": "authority", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "vipStartTime", "type": "i64"},
+        {"name": "phaseDuration", "type": "i64"}
+      ]
+    },
+    {
+      "name": "buyTokensSol",
+      "accounts": [
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "buyerData", "isMut": true, "isSigner": false},
+        {"name": "referrerData", "isMut": false, "isSigner": false},
+        {"name": "presaleVault", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "pythSolFeed", "isMut": false, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "presaleTokenMint", "isMut": true, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "amount", "type": "u64"},
+        {"name": "referrer", "type": {"option": "publicKey"}}
+      ]
+    },
+    {
+      "name": "buyTokensUsdc",
+      "accounts": [
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "buyerData", "isMut": true, "isSigner": false},
+        {"name": "referrerData", "isMut": false, "isSigner": false},
+        {"name": "presaleUsdcVault", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "userUsdcAccount", "isMut": true, "isSigner": false},
+        {"name": "presaleTokenMint", "isMut": true, "isSigner": false},
+        {"name": "usdcMint", "isMut": false, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "amount", "type": "u64"},
+        {"name": "referrer", "type": {"option": "publicKey"}}
+      ]
+    },
+    {
+      "name": "buyTokensUsdt",
+      "accounts": [
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "buyerData", "isMut": true, "isSigner": false},
+        {"name": "referrerData", "isMut": false, "isSigner": false},
+        {"name": "usdtVault", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "userUsdtAccount", "isMut": true, "isSigner": false},
+        {"name": "tokenMint", "isMut": true, "isSigner": false},
+        {"name": "usdtMint", "isMut": false, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "amount", "type": "u64"},
+        {"name": "referrer", "type": {"option": "publicKey"}}
+      ]
+    },
+    {
+      "name": "claimReferralBonus",
+      "accounts": [
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "buyerData", "isMut": true, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "tokenMint", "isMut": true, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false}
+      ],
+      "args": []
+    },
+    {
+      "name": "stakeTokens",
+      "accounts": [
+        {"name": "stakingPool", "isMut": true, "isSigner": false},
+        {"name": "stakingData", "isMut": true, "isSigner": false},
+        {"name": "stakingVault", "isMut": true, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "tokenMint", "isMut": false, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "amount", "type": "u64"},
+        {"name": "duration", "type": {"defined": "StakeDuration"}}
+      ]
+    },
+    {
+      "name": "claimRewards",
+      "accounts": [
+        {"name": "presale", "isMut": false, "isSigner": false},
+        {"name": "stakingPool", "isMut": true, "isSigner": false},
+        {"name": "stakingData", "isMut": true, "isSigner": false},
+        {"name": "tokenMint", "isMut": true, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": []
+    },
+    {
+      "name": "unstakeTokens",
+      "accounts": [
+        {"name": "stakingPool", "isMut": true, "isSigner": false},
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "stakingData", "isMut": true, "isSigner": false},
+        {"name": "stakingVault", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "stakingVaultAuthority", "isMut": false, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false}
+      ],
+      "args": []
+    },
+    {
+      "name": "createProposal",
+      "accounts": [
+        {"name": "proposal", "isMut": true, "isSigner": false},
+        {"name": "proposalCounter", "isMut": true, "isSigner": false},
+        {"name": "proposer", "isMut": true, "isSigner": true},
+        {"name": "proposerTokenAccount", "isMut": false, "isSigner": false},
+        {"name": "stakingData", "isMut": false, "isSigner": false},
+        {"name": "governanceTokenMint", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "title", "type": "bytes"},
+        {"name": "description", "type": "bytes"},
+        {"name": "action", "type": {"defined": "ProposalAction"}},
+        {"name": "propertyAddress", "type": {"option": "bytes"}},
+        {"name": "propertyValueUsd", "type": {"option": "u64"}},
+        {"name": "propertyId", "type": {"option": "bytes"}},
+        {"name": "targetRecipient", "type": {"option": "publicKey"}},
+        {"name": "transferAmount", "type": {"option": "u64"}},
+        {"name": "customVotingDurationDays", "type": {"option": "u64"}},
+        {"name": "customQuorumBps", "type": {"option": "u64"}},
+        {"name": "customApprovalThresholdBps", "type": {"option": "u16"}}
+      ]
+    },
+    {
+      "name": "voteOnProposal",
+      "accounts": [
+        {"name": "proposal", "isMut": true, "isSigner": false},
+        {"name": "voteRecord", "isMut": true, "isSigner": false},
+        {"name": "voterGovernanceToken", "isMut": false, "isSigner": false},
+        {"name": "voterStakingData", "isMut": false, "isSigner": false},
+        {"name": "governanceTokenMint", "isMut": false, "isSigner": false},
+        {"name": "voter", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "proposalId", "type": "u64"},
+        {"name": "support", "type": {"defined": "VoteSupport"}}
+      ]
+    },
+    {
+      "name": "executeProposal",
+      "accounts": [
+        {"name": "proposal", "isMut": true, "isSigner": false},
+        {"name": "executor", "isMut": true, "isSigner": true},
+        {"name": "treasuryVault", "isMut": true, "isSigner": false},
+        {"name": "treasuryAuthority", "isMut": false, "isSigner": false},
+        {"name": "treasuryTokenVault", "isMut": true, "isSigner": false},
+        {"name": "recipientTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "recipient", "isMut": false, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "proposalId", "type": "u64"}
+      ]
+    },
+    {
+      "name": "burnTokens",
+      "accounts": [
+        {"name": "burnData", "isMut": true, "isSigner": false},
+        {"name": "tokenMint", "isMut": true, "isSigner": false},
+        {"name": "userTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "user", "isMut": true, "isSigner": true},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": [
+        {"name": "amount", "type": "u64"}
+      ]
+    },
+    {
+      "name": "claimTeamTokens",
+      "accounts": [
+        {"name": "teamVesting", "isMut": true, "isSigner": false},
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "presaleAuthority", "isMut": false, "isSigner": false},
+        {"name": "tokenMint", "isMut": true, "isSigner": false},
+        {"name": "beneficiaryTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "beneficiary", "isMut": true, "isSigner": true},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeStakingPool",
+      "accounts": [
+        {"name": "stakingPool", "isMut": true, "isSigner": false},
+        {"name": "authority", "isMut": true, "isSigner": true},
+        {"name": "tokenMint", "isMut": false, "isSigner": false},
+        {"name": "stakingVault", "isMut": true, "isSigner": false},
+        {"name": "rewardVault", "isMut": true, "isSigner": false},
+        {"name": "authorityTokenAccount", "isMut": true, "isSigner": false},
+        {"name": "tokenProgram", "isMut": false, "isSigner": false},
+        {"name": "associatedTokenProgram", "isMut": false, "isSigner": false},
+        {"name": "systemProgram", "isMut": false, "isSigner": false}
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeTreasuryVault",
+      "accounts": [
+        {"name": "treasuryVault", "isMut": true, "isSigner": false},
+        {"name": "treasuryAuthority", "isMut": false, "isSigner": false},
+        {"name": "authority", "isMut": true, "isSigner": true},
+        {"name": "systemProgram", "isMut": false, "isSigner": false},
+        {"name": "rent", "isMut": false, "isSigner": false}
+      ],
+      "args": []
+    },
+    {
+      "name": "withdrawFunds",
+      "accounts": [
+        {"name": "presale", "isMut": true, "isSigner": false},
+        {"name": "presaleVault", "isMut": true, "isSigner": false},
+        {"name": "authority", "isMut": true, "isSigner": true}
+      ],
+      "args": [
+        {"name": "amount", "type": "u64"}
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PresaleData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "authority", "type": "publicKey"},
+          {"name": "tokenMint", "type": "publicKey"},
+          {"name": "usdcMint", "type": "publicKey"},
+          {"name": "usdtMint", "type": "publicKey"},
+          {"name": "solVault", "type": "publicKey"},
+          {"name": "usdcVault", "type": "publicKey"},
+          {"name": "usdtVault", "type": "publicKey"},
+          {"name": "tokenVault", "type": "publicKey"},
+          {"name": "teamWallet", "type": "publicKey"},
+          {"name": "vipStartTime", "type": "i64"},
+          {"name": "vipEndTime", "type": "i64"},
+          {"name": "vipTokensSold", "type": "u64"},
+          {"name": "vipBuyersCount", "type": "u64"},
+          {"name": "vipMaxBuyers", "type": "u64"},
+          {"name": "vipMinPurchase", "type": "u64"},
+          {"name": "phase1StartTime", "type": "i64"},
+          {"name": "phaseDuration", "type": "i64"},
+          {"name": "endTime", "type": "i64"},
+          {"name": "phase1TokensSold", "type": "u64"},
+          {"name": "phase2TokensSold", "type": "u64"},
+          {"name": "phase3TokensSold", "type": "u64"},
+          {"name": "totalRaisedSol", "type": "u64"},
+          {"name": "totalRaisedUsdc", "type": "u64"},
+          {"name": "totalRaisedUsdt", "type": "u64"},
+          {"name": "totalRaisedUsd", "type": "u64"},
+          {"name": "totalWithdrawn", "type": "u64"},
+          {"name": "totalTokensSold", "type": "u64"},
+          {"name": "teamAllocation", "type": "u64"},
+          {"name": "teamTokensClaimed", "type": "u64"},
+          {"name": "teamVestingStart", "type": "i64"},
+          {"name": "teamVestingDuration", "type": "i64"},
+          {"name": "totalReferralBonuses", "type": "u64"},
+          {"name": "phase", "type": {"defined": "PresalePhase"}},
+          {"name": "isPaused", "type": "bool"},
+          {"name": "isCancelled", "type": "bool"},
+          {"name": "claimingEnabled", "type": "bool"},
+          {"name": "withdrawalLimitPercent", "type": "u8"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "BuyerData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "user", "type": "publicKey"},
+          {"name": "whitelistTier", "type": {"defined": "WhitelistTier"}},
+          {"name": "isVipBuyer", "type": "bool"},
+          {"name": "tokensPurchased", "type": "u64"},
+          {"name": "tokensClaimed", "type": "u64"},
+          {"name": "bonusTokensEarned", "type": "u64"},
+          {"name": "totalSolPaid", "type": "u64"},
+          {"name": "totalUsdcPaid", "type": "u64"},
+          {"name": "totalUsdtPaid", "type": "u64"},
+          {"name": "totalUsdValue", "type": "u64"},
+          {"name": "referrer", "type": "publicKey"},
+          {"name": "referralBonusEarned", "type": "u64"},
+          {"name": "referralBonusReceived", "type": "u64"},
+          {"name": "totalReferralVolume", "type": "u64"},
+          {"name": "referralClaimed", "type": "u64"},
+          {"name": "referralCount", "type": "u32"},
+          {"name": "firstPurchaseTime", "type": "i64"},
+          {"name": "lastPurchaseTime", "type": "i64"},
+          {"name": "purchaseCount", "type": "u32"},
+          {"name": "hasRefunded", "type": "bool"},
+          {"name": "refundAmount", "type": "u64"},
+          {"name": "maxAllocation", "type": "u64"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "StakingData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "user", "type": "publicKey"},
+          {"name": "amountStaked", "type": "u64"},
+          {"name": "duration", "type": {"defined": "StakeDuration"}},
+          {"name": "apyRate", "type": "u64"},
+          {"name": "stakeStartTime", "type": "i64"},
+          {"name": "lockEndTime", "type": "i64"},
+          {"name": "lastRewardClaimTime", "type": "i64"},
+          {"name": "totalRewardsEarned", "type": "u64"},
+          {"name": "totalRewardsClaimed", "type": "u64"},
+          {"name": "pendingRewards", "type": "u64"},
+          {"name": "isActive", "type": "bool"},
+          {"name": "isLocked", "type": "bool"},
+          {"name": "autoCompound", "type": "bool"},
+          {"name": "daoEligible", "type": "bool"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "StakingPool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "authority", "type": "publicKey"},
+          {"name": "tokenMint", "type": "publicKey"},
+          {"name": "stakingVault", "type": "publicKey"},
+          {"name": "rewardVault", "type": "publicKey"},
+          {"name": "totalStaked", "type": "u64"},
+          {"name": "totalStakers", "type": "u64"},
+          {"name": "totalRewardsDistributed", "type": "u64"},
+          {"name": "rewardPoolBalance", "type": "u64"},
+          {"name": "pendingRewards", "type": "u64"},
+          {"name": "apy6Months", "type": "u64"},
+          {"name": "apy1Year", "type": "u64"},
+          {"name": "apy2Years", "type": "u64"},
+          {"name": "apy3Years", "type": "u64"},
+          {"name": "lastUpdateTime", "type": "i64"},
+          {"name": "createdAt", "type": "i64"},
+          {"name": "isActive", "type": "bool"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "Proposal",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "id", "type": "u64"},
+          {"name": "proposer", "type": "publicKey"},
+          {"name": "action", "type": {"defined": "ProposalAction"}},
+          {"name": "status", "type": {"defined": "ProposalStatus"}},
+          {"name": "title", "type": {"array": ["u8", 64]}},
+          {"name": "titleLen", "type": "u8"},
+          {"name": "description", "type": {"array": ["u8", 512]}},
+          {"name": "descriptionLen", "type": "u16"},
+          {"name": "propertyAddress", "type": {"array": ["u8", 64]}},
+          {"name": "propertyAddressLen", "type": "u8"},
+          {"name": "propertyValueUsd", "type": "u64"},
+          {"name": "propertyId", "type": {"array": ["u8", 32]}},
+          {"name": "votesYes", "type": "u64"},
+          {"name": "votesNo", "type": "u64"},
+          {"name": "votesAbstain", "type": "u64"},
+          {"name": "quorumRequired", "type": "u64"},
+          {"name": "approvalThresholdBps", "type": "u16"},
+          {"name": "createdAt", "type": "i64"},
+          {"name": "votingStart", "type": "i64"},
+          {"name": "votingEnd", "type": "i64"},
+          {"name": "executedAt", "type": "i64"},
+          {"name": "executionData", "type": {"array": ["u8", 128]}},
+          {"name": "executionDataLen", "type": "u8"},
+          {"name": "transferAmount", "type": "u64"},
+          {"name": "transferTokenType", "type": {"defined": "TokenType"}},
+          {"name": "transferRecipient", "type": "publicKey"},
+          {"name": "totalVoters", "type": "u32"},
+          {"name": "quorumReached", "type": "bool"},
+          {"name": "canExecute", "type": "bool"},
+          {"name": "isExecuted", "type": "bool"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "ProposalCounter",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "nextId", "type": "u64"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "Vote",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "proposalId", "type": "u64"},
+          {"name": "voter", "type": "publicKey"},
+          {"name": "support", "type": {"defined": "VoteSupport"}},
+          {"name": "votingPower", "type": "u64"},
+          {"name": "timestamp", "type": "i64"},
+          {"name": "voteCast", "type": "bool"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "TreasuryVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "authority", "type": "publicKey"},
+          {"name": "bump", "type": "u8"},
+          {"name": "usdtBalance", "type": "u64"},
+          {"name": "usdcBalance", "type": "u64"},
+          {"name": "solBalance", "type": "u64"},
+          {"name": "totalReceived", "type": "u64"},
+          {"name": "totalSpent", "type": "u64"},
+          {"name": "isActive", "type": "bool"}
+        ]
+      }
+    },
+    {
+      "name": "TeamVesting",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "authority", "type": "publicKey"},
+          {"name": "beneficiary", "type": "publicKey"},
+          {"name": "totalAllocation", "type": "u64"},
+          {"name": "amountClaimed", "type": "u64"},
+          {"name": "amountVested", "type": "u64"},
+          {"name": "vestingStart", "type": "i64"},
+          {"name": "vestingDuration", "type": "i64"},
+          {"name": "lastClaimTime", "type": "i64"},
+          {"name": "cliffDuration", "type": "i64"},
+          {"name": "isPaused", "type": "bool"},
+          {"name": "isInitialized", "type": "bool"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    },
+    {
+      "name": "BurnData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {"name": "user", "type": "publicKey"},
+          {"name": "amountBurned", "type": "u64"},
+          {"name": "cumulativeBurned", "type": "u64"},
+          {"name": "burnCount", "type": "u64"},
+          {"name": "lastBurnTime", "type": "i64"},
+          {"name": "bump", "type": "u8"}
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "PresalePhase",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "NotStarted"},
+          {"name": "VipAccess"},
+          {"name": "Phase1"},
+          {"name": "Phase2"},
+          {"name": "Phase3"},
+          {"name": "Ended"},
+          {"name": "Cancelled"}
+        ]
+      }
+    },
+    {
+      "name": "PaymentToken",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "SOL"},
+          {"name": "USDC"},
+          {"name": "USDT"}
+        ]
+      }
+    },
+    {
+      "name": "StakeDuration",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "SixMonths"},
+          {"name": "OneYear"},
+          {"name": "TwoYears"},
+          {"name": "ThreeYears"}
+        ]
+      }
+    },
+    {
+      "name": "WhitelistTier",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "None"},
+          {"name": "Standard"},
+          {"name": "Vip"}
+        ]
+      }
+    },
+    {
+      "name": "ProposalAction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "TreasuryTransfer"},
+          {"name": "UpdateStakingParams"},
+          {"name": "PauseProtocol"},
+          {"name": "UpgradeProgram"},
+          {"name": "CustomAction"}
+        ]
+      }
+    },
+    {
+      "name": "ProposalStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "Draft"},
+          {"name": "Active"},
+          {"name": "Succeeded"},
+          {"name": "Defeated"},
+          {"name": "Executed"},
+          {"name": "Cancelled"},
+          {"name": "Expired"}
+        ]
+      }
+    },
+    {
+      "name": "TokenType",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "USDT"},
+          {"name": "USDC"},
+          {"name": "SOL"},
+          {"name": "LLTY"}
+        ]
+      }
+    },
+    {
+      "name": "VoteSupport",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {"name": "Yes"},
+          {"name": "No"},
+          {"name": "Abstain"}
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {"code": 6000, "name": "NotActive", "msg": "Presale is not active"},
+    {"code": 6001, "name": "NotStarted", "msg": "Presale has not started yet"},
+    {"code": 6002, "name": "Ended", "msg": "Presale has ended"},
+    {"code": 6003, "name": "PresalePaused", "msg": "Presale is paused"},
+    {"code": 6004, "name": "PresaleCancelled", "msg": "Presale is cancelled"},
+    {"code": 6005, "name": "InvalidPhase", "msg": "Invalid presale phase"},
+    {"code": 6006, "name": "VipNotStarted", "msg": "VIP phase has not started"},
+    {"code": 6007, "name": "VipPhaseEnded", "msg": "VIP phase has ended"},
+    {"code": 6008, "name": "VipSlotsFull", "msg": "VIP slots are full"},
+    {"code": 6009, "name": "BelowVipMinimum", "msg": "Below VIP minimum purchase amount"},
+    {"code": 6010, "name": "InsufficientTokens", "msg": "Insufficient tokens available"},
+    {"code": 6011, "name": "ExceedsAllocation", "msg": "Exceeds maximum allocation"},
+    {"code": 6012, "name": "PurchaseAmountTooLow", "msg": "Purchase amount too low"},
+    {"code": 6013, "name": "InvalidAmount", "msg": "Invalid amount"},
+    {"code": 6014, "name": "Overflow", "msg": "Arithmetic overflow"},
+    {"code": 6015, "name": "Underflow", "msg": "Arithmetic underflow"},
+    {"code": 6016, "name": "InvalidOracleData", "msg": "Invalid oracle data"},
+    {"code": 6017, "name": "OraclePriceStale", "msg": "Oracle price is stale"},
+    {"code": 6018, "name": "InvalidOraclePrice", "msg": "Invalid oracle price"},
+    {"code": 6019, "name": "SelfReferral", "msg": "Cannot refer yourself"},
+    {"code": 6020, "name": "InvalidReferrer", "msg": "Invalid referrer"},
+    {"code": 6021, "name": "ReferrerNotFound", "msg": "Referrer not found"},
+    {"code": 6022, "name": "AlreadyHasReferrer", "msg": "Already has a referrer"},
+    {"code": 6023, "name": "NothingToClaim", "msg": "No tokens to claim"},
+    {"code": 6024, "name": "ClaimTooLarge", "msg": "Claim amount too large"},
+    {"code": 6025, "name": "ClaimingNotEnabled", "msg": "Claiming is not enabled yet"},
+    {"code": 6026, "name": "StakingNotActive", "msg": "Staking pool is not active"},
+    {"code": 6027, "name": "NotStaked", "msg": "User has no active stake"},
+    {"code": 6028, "name": "StakeLocked", "msg": "Stake is still locked"},
+    {"code": 6029, "name": "NoRewardsToClaim", "msg": "No rewards to claim"},
+    {"code": 6030, "name": "InsufficientRewards", "msg": "Insufficient rewards in pool"},
+    {"code": 6031, "name": "InsufficientTime", "msg": "Insufficient time has passed"},
+    {"code": 6032, "name": "ProposalNotActive", "msg": "Proposal is not active"},
+    {"code": 6033, "name": "VotingNotStarted", "msg": "Voting period has not started"},
+    {"code": 6034, "name": "VotingEnded", "msg": "Voting period has ended"},
+    {"code": 6035, "name": "VotingNotEnded", "msg": "Voting period has not ended yet"},
+    {"code": 6036, "name": "AlreadyVoted", "msg": "User has already voted"},
+    {"code": 6037, "name": "ZeroVotingPower", "msg": "Zero voting power"},
+    {"code": 6038, "name": "VotingNotActive", "msg": "Voting is not active"},
+    {"code": 6039, "name": "QuorumNotReached", "msg": "Quorum not reached"},
+    {"code": 6040, "name": "ProposalNotPassed", "msg": "Proposal has not passed"},
+    {"code": 6041, "name": "AlreadyExecuted", "msg": "Proposal already executed"},
+    {"code": 6042, "name": "CannotExecute", "msg": "Proposal cannot be executed"},
+    {"code": 6043, "name": "ExecutionWindowExpired", "msg": "Execution window expired"},
+    {"code": 6044, "name": "ApprovalThresholdNotMet", "msg": "Approval threshold not met"},
+    {"code": 6045, "name": "InsufficientGovernancePower", "msg": "Insufficient governance power"},
+    {"code": 6046, "name": "InvalidTitleLength", "msg": "Invalid title length"},
+    {"code": 6047, "name": "InvalidDescriptionLength", "msg": "Invalid description length"},
+    {"code": 6048, "name": "MissingTransferDetails", "msg": "Missing transfer details"},
+    {"code": 6049, "name": "InvalidTransferAmount", "msg": "Invalid transfer amount"},
+    {"code": 6050, "name": "InvalidRecipient", "msg": "Invalid recipient"},
+    {"code": 6051, "name": "TreasuryInactive", "msg": "Treasury is inactive"},
+    {"code": 6052, "name": "VestingNotStarted", "msg": "Vesting has not started yet"},
+    {"code": 6053, "name": "VestingPaused", "msg": "Vesting is paused"},
+    {"code": 6054, "name": "NoVestedTokens", "msg": "No vested tokens to claim"},
+    {"code": 6055, "name": "NotBeneficiary", "msg": "Not the vesting beneficiary"},
+    {"code": 6056, "name": "Unauthorized", "msg": "Unauthorized"},
+    {"code": 6057, "name": "AlreadyInitialized", "msg": "Account already initialized"},
+    {"code": 6058, "name": "InvalidTimeParams", "msg": "Invalid time parameters"},
+    {"code": 6059, "name": "InsufficientFunds", "msg": "Insufficient funds in vault"}
+  ]
+}

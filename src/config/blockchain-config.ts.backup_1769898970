@@ -1,0 +1,265 @@
+// ============================================================================
+// BLOCKCHAIN CONFIGURATION - SINGLE SOURCE OF TRUTH
+// ============================================================================
+// ALL addresses in ONE place - easy switching between devnet/mainnet
+// ============================================================================
+
+import { PublicKey } from '@solana/web3.js';
+
+// ============================================================================
+// ENVIRONMENT SELECTION
+// ============================================================================
+export const CURRENT_NETWORK: 'devnet' | 'mainnet' = 'devnet'; // Change to 'mainnet' when ready
+
+// ============================================================================
+// RPC ENDPOINTS
+// ============================================================================
+export const RPC_ENDPOINTS = {
+  devnet: 'https://devnet.helius-rpc.com/?api-key=8fd20322-0155-4b78-874f-837235298a26',
+  mainnet: 'https://api.mainnet-beta.solana.com',
+  // For production, use paid RPC (Helius, QuickNode, etc):
+  // mainnet: 'https://your-rpc-endpoint.com'
+};
+
+// ============================================================================
+// TOKEN MINTS (Network-specific)
+// ============================================================================
+const TOKEN_MINTS = {
+  devnet: {
+    // Devnet test tokens
+    USDC: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+    USDT: '3vU3VsQcGnRg9dBpGiGGYG3q38GGNU6oz3PFZ4m1rGrK',
+  },
+  mainnet: {
+    // REAL mainnet tokens
+    USDC: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+  }
+};
+
+// ============================================================================
+// YOUR PROGRAM ADDRESSES (Same for devnet/mainnet after deployment)
+// ============================================================================
+const PROGRAM_CONFIG = {
+  devnet: {
+    programId: '2oArywYY7xHyoV1xoF9g9QKkyKDHe3rA9kRyu1H8ZQxo',
+    lltyMint: '6UYrC72Xseu8bSrjZz5VUZ3aGo68MEqpNNyMgqqcfajf',
+    presalePda: 'GzPZVVDfuwmV1uXEovCesN9Mp21HkAaAgMR7SSdc2idT',
+    lltyVault: '9UqwUfRpi41GBTVuHPiSjWXUoW4EoWah3aYdiUspfU7f',
+    usdcVault: 'Hzmv4eWhLFbfC7XpDmf3dpMCn6jHDXDSYWosv87Nmegh',
+    usdtVault: '4uL4vLsTVpVqanQT29skUBkQMsgvkRDHA66F8UVr5rVi',
+    treasury: '9oZU58LrsPN1Kgoz76Tns4yw8qsrPFkAY1Nj9EVwTfQk',
+  },
+  mainnet: {
+    // UPDATE THESE WHEN DEPLOYING TO MAINNET
+    programId: 'UPDATE_AFTER_MAINNET_DEPLOYMENT',
+    lltyMint: 'UPDATE_AFTER_TOKEN_CREATION',
+    presalePda: 'UPDATE_AFTER_INITIALIZATION',
+    lltyVault: 'UPDATE_AFTER_INITIALIZATION',
+    usdcVault: 'UPDATE_AFTER_INITIALIZATION',
+    usdtVault: 'UPDATE_AFTER_INITIALIZATION',
+    treasury: 'UPDATE_AFTER_INITIALIZATION',
+  }
+};
+
+// ============================================================================
+// ACTIVE CONFIGURATION (based on CURRENT_NETWORK)
+// ============================================================================
+const currentConfig = PROGRAM_CONFIG[CURRENT_NETWORK];
+const currentTokens = TOKEN_MINTS[CURRENT_NETWORK];
+
+// ============================================================================
+// EXPORTED BLOCKCHAIN CONFIG
+// ============================================================================
+export const BLOCKCHAIN_CONFIG = {
+  // Network
+  network: CURRENT_NETWORK,
+  rpcEndpoint: RPC_ENDPOINTS[CURRENT_NETWORK],
+  commitment: 'confirmed' as const,
+  
+  // Program addresses (as PublicKey objects)
+  programId: new PublicKey(currentConfig.programId),
+  lltyMint: new PublicKey(currentConfig.lltyMint),
+  presalePda: new PublicKey(currentConfig.presalePda),
+  lltyVault: new PublicKey(currentConfig.lltyVault),
+  usdcVault: new PublicKey(currentConfig.usdcVault),
+  usdtVault: new PublicKey(currentConfig.usdtVault),
+  treasury: new PublicKey(currentConfig.treasury),
+  
+  // Token mints (as PublicKey objects)
+  usdcMint: new PublicKey(currentTokens.USDC),
+  usdtMint: new PublicKey(currentTokens.USDT),
+  
+  // Explorer URL helper
+  getExplorerUrl: (signature: string, type: 'tx' | 'address' = 'tx') => {
+    const cluster = CURRENT_NETWORK === 'devnet' ? '?cluster=devnet' : '';
+    return `https://explorer.solana.com/${type}/${signature}${cluster}`;
+  },
+};
+
+// ============================================================================
+// STRING VERSIONS (for backward compatibility)
+// ============================================================================
+export const ADDRESSES = {
+  PROGRAM_ID: currentConfig.programId,
+  LLTY_MINT: currentConfig.lltyMint,
+  USDC_MINT: currentTokens.USDC,
+  USDT_MINT: currentTokens.USDT,
+  PRESALE_PDA: currentConfig.presalePda,
+  LLTY_VAULT: currentConfig.lltyVault,
+  USDC_VAULT: currentConfig.usdcVault,
+  USDT_VAULT: currentConfig.usdtVault,
+  TREASURY: currentConfig.treasury,
+};
+
+// ============================================================================
+// PDA HELPERS
+// ============================================================================
+
+/**
+ * Get buyer data PDA for a user
+ */
+export const getBuyerDataPDA = (userPublicKey: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('buyer'), userPublicKey.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get presale authority PDA
+ */
+export const getPresaleAuthorityPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('presale_authority'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get staking data PDA for a user
+ */
+export const getStakingDataPDA = (userPublicKey: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('staking'), userPublicKey.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get staking pool PDA
+ */
+export const getStakingPoolPDA = (): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('staking_pool')],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+/**
+ * Get staking vault PDA
+ */
+export const getStakingVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('staking_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+// ============================================================================
+
+// ============================================================================
+// STAKING CONFIGURATION
+// ============================================================================
+export const STAKING_CONFIG = {
+  // Duration in months
+  DURATIONS: {
+    SIX_MONTHS: 6,
+    ONE_YEAR: 12,
+    TWO_YEARS: 24,
+    THREE_YEARS: 36,
+  },
+  
+  // APY percentages
+  APY: {
+    SIX_MONTHS: 4,
+    ONE_YEAR: 8,
+    TWO_YEARS: 12,
+    THREE_YEARS: 18,
+  },
+  
+  // Minimum stake
+  MIN_STAKE: 100, // 100 LLTY
+  
+  // Early unstake penalty
+  EARLY_PENALTY_PERCENT: 50, // 50% of rewards
+};
+
+// ============================================================================
+// TOKEN DECIMALS
+// ============================================================================
+export const DECIMALS = {
+  LLTY: 9,
+  USDC: 6,
+  USDT: 6,
+  SOL: 9,
+};
+
+// ============================================================================
+// TRANSACTION SETTINGS
+// ============================================================================
+export const TX_CONFIG = {
+  COMMITMENT: 'confirmed' as const,
+  PREFLIGHT_COMMITMENT: 'confirmed' as const,
+  SKIP_PREFLIGHT: false,
+  MAX_RETRIES: 3,
+  TIMEOUT: 60000, // 60 seconds
+};
+
+// ============================================================================
+// VALIDATION
+// ============================================================================
+export const validateConfig = (): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (CURRENT_NETWORK === 'mainnet') {
+    if (currentConfig.programId.includes('UPDATE')) {
+      errors.push('⚠️ Program ID not set for mainnet');
+    }
+    if (currentConfig.lltyMint.includes('UPDATE')) {
+      errors.push('⚠️ LLTY mint not set for mainnet');
+    }
+    if (currentConfig.presalePda.includes('UPDATE')) {
+      errors.push('⚠️ Presale PDA not initialized for mainnet');
+    }
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+};
+
+// ============================================================================
+// LOG CONFIGURATION (helpful for debugging)
+// ============================================================================
+if (typeof window !== 'undefined') {
+  console.log('🔧 Blockchain Config Loaded:');
+  console.log('  Network:', CURRENT_NETWORK);
+  console.log('  RPC:', RPC_ENDPOINTS[CURRENT_NETWORK]);
+  console.log('  Program ID:', currentConfig.programId.slice(0, 8) + '...');
+  console.log('  USDC Mint:', currentTokens.USDC.slice(0, 8) + '...');
+  console.log('  USDT Mint:', currentTokens.USDT.slice(0, 8) + '...');
+  
+  const validation = validateConfig();
+  if (!validation.valid) {
+    console.warn('⚠️ Configuration Issues:', validation.errors);
+  } else {
+    console.log('✅ Configuration Valid');
+  }
+}
+
+// ============================================================================
+// DEFAULT EXPORT
+// ============================================================================
+export default BLOCKCHAIN_CONFIG;

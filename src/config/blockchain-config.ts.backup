@@ -1,0 +1,88 @@
+import { PublicKey } from '@solana/web3.js';
+
+export const BLOCKCHAIN_CONFIG = {
+  network: 'devnet' as const,
+  rpcEndpoint: 'https://api.devnet.solana.com',
+  programId: new PublicKey('2oArywYY7xHyoV1xoF9g9QKkyKDHe3rA9kRyu1H8ZQxo'),
+  
+  // Token Mints (CORRECTED)
+  lltyMint: new PublicKey('6UYrC72Xseu8bSrjZz5VUZ3aGo68MEqpNNyMgqqcfajf'),
+  usdcMint: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
+  usdtMint: new PublicKey('EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS'),
+  
+  // PDAs (from address file)
+  presalePda: new PublicKey('BWNsv1VcJzhSM76iVSKdK2SsWZTQzZuKVSccKbgPPEKN'),
+  lltyVault: new PublicKey('6kZbTEeF4iqx7iSsqF38xG1HaBoAs2oynrhBYLCi5GG3'),
+  usdcVault: new PublicKey('H3u3a7A58KXbSWZevgRFb9dCjZS6WpmzGhvZfXBqPCzL'),
+  usdtVault: new PublicKey('A2fVxvWHBQGo8yUdh8LZWrVWQa1AjQHTNhP93yfEjyyx'),
+};
+
+export const DECIMALS = {
+  LLTY: 9,
+  USDC: 6,
+  USDT: 6,
+  SOL: 9,
+};
+
+export const TX_CONFIG = {
+  commitment: 'confirmed' as const,
+  preflightCommitment: 'confirmed' as const,
+  skipPreflight: false,
+};
+
+// PDA Helper Functions (for dynamic derivation if needed)
+export const getPresalePDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('presale'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getBuyerDataPDA = (userPublicKey: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('buyer'), userPublicKey.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getPresaleAuthorityPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('presale_authority'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getTokenVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('token_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getUsdcVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('usdc_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getUsdtVaultPDA = (authority: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('usdt_vault'), authority.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getStakingDataPDA = (userPublicKey: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('staking'), userPublicKey.toBuffer()],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};
+
+export const getStakingPoolPDA = (): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('staking_pool')],
+    BLOCKCHAIN_CONFIG.programId
+  );
+};

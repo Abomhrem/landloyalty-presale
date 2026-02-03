@@ -17,7 +17,7 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 import './index.css';
 
 const network = WalletAdapterNetwork.Devnet;
-const endpoint = 'https://api.devnet.solana.com';
+const endpoint = 'https://devnet.helius-rpc.com/?api-key=8fd20322-0155-4b78-874f-837235298a26';
 
 const wallets = [
   new PhantomWalletAdapter(),

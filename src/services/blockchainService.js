@@ -13,7 +13,7 @@ import { getAssociatedTokenAddress } from '@solana/spl-token';
 // ============================================================================
 export const BLOCKCHAIN_CONFIG = {
   NETWORK: 'devnet', // Change to 'mainnet-beta' for production
-  RPC_ENDPOINT: 'https://api.devnet.solana.com',
+  RPC_ENDPOINT: 'https://devnet.helius-rpc.com/?api-key=8fd20322-0155-4b78-874f-837235298a26',
   COMMITMENT: 'confirmed',
   RETRY_COUNT: 3,
   RETRY_DELAY: 1000, // ms
@@ -22,9 +22,9 @@ export const BLOCKCHAIN_CONFIG = {
   ADDRESSES: {
     PROGRAM_ID: new PublicKey('2oArywYY7xHyoV1xoF9g9QKkyKDHe3rA9kRyu1H8ZQxo'),
     LLTY_MINT: new PublicKey('6UYrC72Xseu8bSrjZz5VUZ3aGo68MEqpNNyMgqqcfajf'),
-    USDC_MINT: new PublicKey('7e54j2gSb31gpeW3sLZktexZBqrA1tLzg14ncuiphrP4'),
-    USDT_MINT: new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuwSzGqKzNNc98FK'),
-    PRESALE_PDA: new PublicKey('9b55xaKqELt1fYHn6MXA9vETy4ngTPxSZZ1SJmTQN1Kr'),
+    USDC_MINT: new PublicKey('Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr'),
+    USDT_MINT: new PublicKey('3vU3VsQcGnRg9dBpGiGGYG3q38GGNU6oz3PFZ4m1rGrK'),
+    PRESALE_PDA: new PublicKey('GzPZVVDfuwmV1uXEovCesN9Mp21HkAaAgMR7SSdc2idT'),
   }
 };
 

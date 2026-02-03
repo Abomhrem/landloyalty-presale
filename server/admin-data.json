@@ -1,0 +1,61 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "email": "admin@landloyalty.com",
+      "passwordHash": "$2a$10$u.BNI5cYKIaejCxQn.mqOOFwfuuB6/b36ur7mjujau8Kvnd3Clqh.",
+      "name": "Super Admin",
+      "role": "super_admin",
+      "permissions": [
+        "all"
+      ],
+      "createdAt": "2026-02-03T16:29:18.851Z",
+      "lastLogin": "2026-02-03T21:35:42.416Z",
+      "status": "active",
+      "passwordChangedAt": "2026-02-03T16:31:18.099Z"
+    }
+  ],
+  "auditLog": [
+    {
+      "id": "1770136160818",
+      "action": "LOGIN_SUCCESS",
+      "userId": "1",
+      "details": {},
+      "timestamp": "2026-02-03T16:29:20.818Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770136243801",
+      "action": "LOGIN_SUCCESS",
+      "userId": "1",
+      "details": {},
+      "timestamp": "2026-02-03T16:30:43.801Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770136253748",
+      "action": "LOGIN_SUCCESS",
+      "userId": "1",
+      "details": {},
+      "timestamp": "2026-02-03T16:30:53.748Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770136278099",
+      "action": "PASSWORD_CHANGED",
+      "userId": "1",
+      "details": {},
+      "timestamp": "2026-02-03T16:31:18.099Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770154542417",
+      "action": "LOGIN_SUCCESS",
+      "userId": "1",
+      "details": {},
+      "timestamp": "2026-02-03T21:35:42.417Z",
+      "ip": "localhost"
+    }
+  ],
+  "sessions": []
+}

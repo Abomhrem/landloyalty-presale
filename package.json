@@ -2,6 +2,7 @@
   "name": "landloyalty-presale",
   "version": "3.0.0",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
     "@jup-ag/api": "^6.0.48",

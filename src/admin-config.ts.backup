@@ -1,0 +1,40 @@
+export const ADMIN_CONFIG = {
+  supabase: {
+    url: 'https://iaxuocfucudlcoglwygb.supabase.co',
+    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlheHVvY2Z1Y3VkbGNvZ2x3eWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNDc0NDIsImV4cCI6MjA4MzYyMzQ0Mn0.yo_YJhFUcgnBrflq0IDKht_9cmYh0ocfMxq3PofRwUM'
+  },
+  blockchain: {
+    programId: '2oArywYY7xHyoV1xoF9g9QKkyKDHe3rA9kRyu1H8ZQxo',
+    lltyMint: '6UYrC72Xseu8bSrjZz5VUZ3aGo68MEqpNNyMgqqcfajf',
+    usdcMint: '7e54j2gSb31gpeW3sLZktexZBqrA1tLzg14ncuiphrP4',
+    usdtMint: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuwSzGqKzNNc98FK',
+    presalePda: '9b55xaKqELt1fYHn6MXA9vETy4ngTPxSZZ1SJmTQN1Kr',
+    lltyVault: '9UqwUfRpi41GBTVuHPiSjWXUoW4EoWah3aYdiUspfU7f',
+    usdcVault: 'Hzmv4eWhLFbfC7XpDmf3dpMCn6jHDXDSYWosv87Nmegh',
+    usdtVault: '4uL4vLsTVpVqanQT29skUBkQMsgvkRDHA66F8UVr5rVi'
+  },
+  presale: {
+    startDate: '2026-01-01T00:00:00Z',
+    vipDuration: 48, // hours
+    endDate: '2026-02-11T23:59:59Z',
+    phaseDuration: 14, // days
+    prices: {
+      vip: 0.001,
+      phase1: 0.004,
+      phase2: 0.005,
+      phase3: 0.006
+    }
+  },
+  wallets: {
+    vaults: {
+      llty: '9UqwUfRpi41GBTVuHPiSjWXUoW4EoWah3aYdiUspfU7f',
+      usdc: 'Hzmv4eWhLFbfC7XpDmf3dpMCn6jHDXDSYWosv87Nmegh',
+      usdt: '4uL4vLsTVpVqanQT29skUBkQMsgvkRDHA66F8UVr5rVi'
+    },
+    presale: '9b55xaKqELt1fYHn6MXA9vETy4ngTPxSZZ1SJmTQN1Kr'
+  },
+  rpc: {
+    devnet: 'https://devnet.helius-rpc.com/?api-key=8fd20322-0155-4b78-874f-837235298a26',
+    mainnet: 'https://api.mainnet-beta.solana.com'
+  }
+};

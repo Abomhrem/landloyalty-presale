@@ -1,0 +1,416 @@
+// ============================================================================
+// ADMIN SERVICE - REAL-TIME BLOCKCHAIN DATA
+// ============================================================================
+import { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { ADMIN_CONFIG } from '../admin-config';
+import { BLOCKCHAIN_CONFIG, getStakingPoolPDA } from '../config/blockchain-config';
+
+const RPC_ENDPOINT = ADMIN_CONFIG.rpc.devnet;
+const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+
+// ============================================================================
+// WALLET BALANCES
+// ============================================================================
+export const fetchWalletBalances = async () => {
+  try {
+    console.log('📊 Fetching real wallet balances...');
+    
+    const vaults = ADMIN_CONFIG.wallets.vaults;
+    const balances = {
+      llty: { sol: 0, usdc: 0, usdt: 0, llty: 0, address: vaults.llty },
+      usdc: { sol: 0, usdc: 0, usdt: 0, llty: 0, address: vaults.usdc },
+      usdt: { sol: 0, usdc: 0, usdt: 0, llty: 0, address: vaults.usdt },
+      presale: { sol: 0, usdc: 0, usdt: 0, llty: 0, address: ADMIN_CONFIG.wallets.presale }
+    };
+
+    // Fetch SOL balances
+    for (const [key, vault] of Object.entries(ADMIN_CONFIG.wallets.vaults)) {
+      try {
+        const pubkey = new PublicKey(vault);
+        const balance = await connection.getBalance(pubkey);
+        balances[key as keyof typeof balances].sol = balance / LAMPORTS_PER_SOL;
+      } catch (error) {
+        console.error(`Error fetching SOL for ${key}:`, error);
+      }
+    }
+
+    // Fetch presale PDA SOL balance
+    try {
+      const presalePubkey = new PublicKey(ADMIN_CONFIG.wallets.presale);
+      const balance = await connection.getBalance(presalePubkey);
+      balances.presale.sol = balance / LAMPORTS_PER_SOL;
+    } catch (error) {
+      console.error('Error fetching presale SOL:', error);
+    }
+
+    // Fetch token balances (USDC, USDT, LLTY)
+    const tokenMints = {
+      usdc: new PublicKey(ADMIN_CONFIG.blockchain.usdcMint),
+      usdt: new PublicKey(ADMIN_CONFIG.blockchain.usdtMint),
+      llty: new PublicKey(ADMIN_CONFIG.blockchain.lltyMint)
+    };
+
+    for (const [vaultKey, vaultAddress] of Object.entries({...ADMIN_CONFIG.wallets.vaults, presale: ADMIN_CONFIG.wallets.presale})) {
+      for (const [tokenKey, mintAddress] of Object.entries(tokenMints)) {
+        try {
+          const walletPubkey = new PublicKey(vaultAddress);
+          const tokenAccount = await getAssociatedTokenAddress(
+            mintAddress,
+            walletPubkey
+          );
+          
+          const balance = await connection.getTokenAccountBalance(tokenAccount);
+          const amount = parseFloat(balance.value.uiAmount || '0');
+          
+          if (vaultKey === 'presale') {
+            balances.presale[tokenKey as 'usdc' | 'usdt' | 'llty'] = amount;
+          } else {
+            balances[vaultKey as keyof typeof balances][tokenKey as 'usdc' | 'usdt' | 'llty'] = amount;
+          }
+        } catch (error) {
+          // Token account might not exist, that's ok
+        }
+      }
+    }
+
+    console.log('✅ Wallet balances fetched:', balances);
+    return balances;
+  } catch (error) {
+    console.error('❌ Error fetching wallet balances:', error);
+    throw error;
+  }
+};
+
+// ============================================================================
+// PRESALE STATISTICS
+// ============================================================================
+export const fetchPresaleStats = async () => {
+  try {
+    console.log('📊 Fetching presale statistics...');
+    
+    const presalePubkey = new PublicKey(ADMIN_CONFIG.blockchain.presalePda);
+    
+    // Fetch presale account data
+    const accountInfo = await connection.getAccountInfo(presalePubkey);
+    
+    if (!accountInfo) {
+      console.warn('⚠️ Presale account not initialized yet');
+      return {
+        totalRaised: 0,
+        totalInvestors: 0,
+        avgInvestment: 0,
+        activeWallets: 0,
+        lltyDistributed: 0
+      };
+    }
+
+    // Parse presale account data
+    // Note: This is a simplified version - you'll need to decode based on your actual program structure
+    const data = accountInfo.data;
+    
+    // For now, calculate from transactions
+    const signatures = await connection.getSignaturesForAddress(presalePubkey, { limit: 1000 });
+    
+    const transactions = await Promise.all(
+      signatures.slice(0, 100).map(sig => 
+        connection.getParsedTransaction(sig.signature, { maxSupportedTransactionVersion: 0 })
+      )
+    );
+
+    const validTransactions = transactions.filter(tx => tx !== null);
+    const uniqueWallets = new Set(validTransactions.map(tx => tx?.transaction.message.accountKeys[0].pubkey.toString()));
+    
+    // Calculate from wallet balances
+    const walletBalances = await fetchWalletBalances();
+    const totalRaised = walletBalances.usdc.usdc + walletBalances.usdt.usdt + (walletBalances.presale.sol * 100); // Estimate SOL value
+    
+    return {
+      totalRaised: totalRaised,
+      totalInvestors: uniqueWallets.size,
+      avgInvestment: uniqueWallets.size > 0 ? totalRaised / uniqueWallets.size : 0,
+      activeWallets: signatures.length,
+      lltyDistributed: walletBalances.llty.llty
+    };
+  } catch (error) {
+    console.error('❌ Error fetching presale stats:', error);
+    return {
+      totalRaised: 0,
+      totalInvestors: 0,
+      avgInvestment: 0,
+      activeWallets: 0,
+      lltyDistributed: 0
+    };
+  }
+};
+
+// ============================================================================
+// TRANSACTION HISTORY
+// ============================================================================
+export const fetchTransactions = async (limit = 50) => {
+  try {
+    console.log('📊 Fetching transaction history...');
+    
+    const presalePubkey = new PublicKey(ADMIN_CONFIG.blockchain.presalePda);
+    const signatures = await connection.getSignaturesForAddress(presalePubkey, { limit });
+    
+    const transactions = await Promise.all(
+      signatures.map(async (sig) => {
+        try {
+          const tx = await connection.getParsedTransaction(sig.signature, {
+            maxSupportedTransactionVersion: 0
+          });
+          
+          if (!tx) return null;
+
+          // Extract transaction details
+          const date = new Date(sig.blockTime! * 1000);
+          const wallet = tx.transaction.message.accountKeys[0].pubkey.toString();
+          
+          // Parse amount from transaction
+          let amount = 0;
+          let token = 'SOL';
+          let lltyAmount = 0;
+          
+          // Look through instructions to find transfer
+          tx.transaction.message.instructions.forEach((ix: any) => {
+            if (ix.parsed?.type === 'transfer') {
+              amount = ix.parsed.info.lamports / LAMPORTS_PER_SOL;
+              token = 'SOL';
+              lltyAmount = amount / 0.004; // Approximate based on phase 1 price
+            } else if (ix.parsed?.type === 'transferChecked') {
+              amount = parseFloat(ix.parsed.info.tokenAmount?.uiAmount || 0);
+              token = ix.parsed.info.mint === ADMIN_CONFIG.blockchain.usdcMint ? 'USDC' : 'USDT';
+              lltyAmount = amount / 0.004;
+            }
+          });
+
+          return {
+            id: sig.signature.slice(0, 8),
+            signature: sig.signature,
+            wallet: `${wallet.slice(0, 6)}...${wallet.slice(-6)}`,
+            walletFull: wallet,
+            amount,
+            token,
+            llty: lltyAmount,
+            date: date.toLocaleString(),
+            timestamp: date.getTime(),
+            status: sig.confirmationStatus === 'finalized' ? 'completed' : 'pending',
+            blockTime: sig.blockTime
+          };
+        } catch (error) {
+          console.error('Error parsing transaction:', error);
+          return null;
+        }
+      })
+    );
+
+    const validTransactions = transactions.filter(tx => tx !== null && tx.amount > 0);
+    console.log(`✅ Fetched ${validTransactions.length} transactions`);
+    
+    return validTransactions;
+  } catch (error) {
+    console.error('❌ Error fetching transactions:', error);
+    return [];
+  }
+};
+
+// ============================================================================
+// TREASURY TOTALS
+// ============================================================================
+export const fetchTreasuryTotals = async () => {
+  try {
+    console.log('📊 Calculating treasury totals...');
+    
+    const balances = await fetchWalletBalances();
+    
+    const totals = {
+      sol: balances.llty.sol + balances.usdc.sol + balances.usdt.sol + balances.presale.sol,
+      usdc: balances.llty.usdc + balances.usdc.usdc + balances.usdt.usdc + balances.presale.usdc,
+      usdt: balances.llty.usdt + balances.usdc.usdt + balances.usdt.usdt + balances.presale.usdt,
+      llty: balances.llty.llty + balances.usdc.llty + balances.usdt.llty + balances.presale.llty
+    };
+
+    console.log('✅ Treasury totals calculated:', totals);
+    return totals;
+  } catch (error) {
+    console.error('❌ Error calculating treasury totals:', error);
+    throw error;
+  }
+};
+
+// ============================================================================
+// PRESALE CONFIGURATION
+// ============================================================================
+export const fetchPresaleConfig = async () => {
+  try {
+    console.log('📊 Fetching presale configuration...');
+    
+    const presalePubkey = new PublicKey(ADMIN_CONFIG.blockchain.presalePda);
+    const accountInfo = await connection.getAccountInfo(presalePubkey);
+    
+    if (!accountInfo) {
+      console.warn('⚠️ Presale not initialized, using default config');
+      return ADMIN_CONFIG.presale;
+    }
+
+    // TODO: Decode actual presale config from account data
+    // For now, return config from admin-config.ts
+    return ADMIN_CONFIG.presale;
+  } catch (error) {
+    console.error('❌ Error fetching presale config:', error);
+    return ADMIN_CONFIG.presale;
+  }
+};
+
+// ============================================================================
+// REAL-TIME MONITORING
+// ============================================================================
+export const subscribeToPresaleUpdates = (callback: (data: any) => void) => {
+  const presalePubkey = new PublicKey(ADMIN_CONFIG.blockchain.presalePda);
+  
+  const subscriptionId = connection.onAccountChange(
+    presalePubkey,
+    (accountInfo) => {
+      console.log('🔔 Presale account updated!');
+      callback(accountInfo);
+    },
+    'confirmed'
+  );
+
+  return () => {
+    connection.removeAccountChangeListener(subscriptionId);
+  };
+};
+
+// ============================================================================
+// STAKING POOL INITIALIZATION
+// ============================================================================
+
+/**
+ * Calculate Anchor discriminator for initialize_staking_pool
+ */
+async function getInitStakingPoolDiscriminator(): Promise<Buffer> {
+  const preimage = 'global:initialize_staking_pool';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(preimage);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = new Uint8Array(hashBuffer);
+  return Buffer.from(hashArray.slice(0, 8));
+}
+
+/**
+ * Initialize the staking pool (admin only)
+ */
+export async function initializeStakingPool(
+  connection: Connection,
+  authorityPublicKey: PublicKey,
+  walletProvider: any
+): Promise<{ success: boolean; signature?: string; error?: string }> {
+  try {
+    console.log('🔨 Building initialize staking pool transaction...');
+
+    // Get staking pool PDA
+    const [stakingPoolPda] = getStakingPoolPDA();
+
+    // Check if already initialized
+    const accountInfo = await connection.getAccountInfo(stakingPoolPda);
+    if (accountInfo) {
+      return {
+        success: false,
+        error: 'Staking pool is already initialized',
+      };
+    }
+
+    // Get authority token account
+    const authorityTokenAccount = await getAssociatedTokenAddress(
+      BLOCKCHAIN_CONFIG.lltyMint,
+      authorityPublicKey
+    );
+
+    // Get staking vault (will be created)
+    const stakingVault = await getAssociatedTokenAddress(
+      BLOCKCHAIN_CONFIG.lltyMint,
+      stakingPoolPda,
+      true // allowOwnerOffCurve
+    );
+
+    // Get reward vault (will be created)
+    const rewardVault = await getAssociatedTokenAddress(
+      BLOCKCHAIN_CONFIG.lltyMint,
+      stakingPoolPda,
+      true // allowOwnerOffCurve
+    );
+
+    // Build transaction
+    const tx = new Transaction();
+
+    const discriminator = await getInitStakingPoolDiscriminator();
+
+    const keys = [
+      { pubkey: stakingPoolPda, isSigner: false, isWritable: true },
+      { pubkey: authorityPublicKey, isSigner: true, isWritable: true },
+      { pubkey: BLOCKCHAIN_CONFIG.lltyMint, isSigner: false, isWritable: false },
+      { pubkey: stakingVault, isSigner: false, isWritable: true },
+      { pubkey: rewardVault, isSigner: false, isWritable: true },
+      { pubkey: authorityTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey('SysvarRent111111111111111111111111111111111'), isSigner: false, isWritable: false },
+    ];
+
+    const instruction = new TransactionInstruction({
+      keys,
+      programId: BLOCKCHAIN_CONFIG.programId,
+      data: discriminator,
+    });
+
+    tx.add(instruction);
+    tx.feePayer = authorityPublicKey;
+
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+
+    console.log('📝 Signing and sending transaction...');
+
+    const signed = await walletProvider.signTransaction(tx);
+    const signature = await connection.sendRawTransaction(signed.serialize(), {
+      skipPreflight: false,
+      preflightCommitment: 'confirmed',
+    });
+
+    console.log('⏳ Confirming transaction...');
+
+    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+    }
+
+    console.log('✅ Staking pool initialized successfully!');
+    console.log('Signature:', signature);
+
+    return {
+      success: true,
+      signature,
+    };
+
+  } catch (error: any) {
+    console.error('❌ Failed to initialize staking pool:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to initialize staking pool',
+    };
+  }
+}
+
+export default {
+  fetchWalletBalances,
+  fetchPresaleStats,
+  fetchTransactions,
+  fetchTreasuryTotals,
+  fetchPresaleConfig,
+  subscribeToPresaleUpdates,
+  initializeStakingPool
+};

@@ -1,0 +1,18 @@
+// After existing imports, add:
+import StakingSection from './components/sections/StakingSection';
+import GovernanceSection from './components/sections/GovernanceSection';
+
+// In the navigation, after existing nav items, add:
+<button onClick={() => scrollToSection('staking')} className="text-gray-200 hover:text-yellow-400 transition-colors font-medium">
+  {t.navigation.staking || (lang === 'ar' ? 'الستيكينغ' : 'Staking')}
+</button>
+<button onClick={() => scrollToSection('governance')} className="text-gray-200 hover:text-yellow-400 transition-colors font-medium">
+  {t.navigation.governance || (lang === 'ar' ? 'الحوكمة' : 'Governance')}
+</button>
+
+// In the main section, after the buy section and before cities section, add:
+{/* STAKING SECTION */}
+<StakingSection lang={lang} showNotification={showNotification} />
+
+{/* GOVERNANCE SECTION */}
+<GovernanceSection lang={lang} showNotification={showNotification} />
