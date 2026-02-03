@@ -10,7 +10,7 @@
         "all"
       ],
       "createdAt": "2026-02-03T16:29:18.851Z",
-      "lastLogin": "2026-02-03T21:35:42.416Z",
+      "lastLogin": "2026-02-03T23:20:58.228Z",
       "status": "active",
       "passwordChangedAt": "2026-02-03T16:31:18.099Z"
     }
@@ -54,6 +54,68 @@
       "userId": "1",
       "details": {},
       "timestamp": "2026-02-03T21:35:42.417Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770160800009",
+      "action": "LOGIN_FAILED",
+      "userId": null,
+      "details": {
+        "email": "admin@landloyalty.world",
+        "reason": "User not found"
+      },
+      "timestamp": "2026-02-03T23:20:00.009Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770160817317",
+      "action": "LOGIN_FAILED",
+      "userId": null,
+      "details": {
+        "email": "admin@landloyalty.world",
+        "reason": "User not found"
+      },
+      "timestamp": "2026-02-03T23:20:17.317Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770160819111",
+      "action": "LOGIN_FAILED",
+      "userId": null,
+      "details": {
+        "email": "admin@landloyalty.world",
+        "reason": "User not found"
+      },
+      "timestamp": "2026-02-03T23:20:19.111Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770160828799",
+      "action": "LOGIN_FAILED",
+      "userId": null,
+      "details": {
+        "email": "admin@landloyalty.world",
+        "reason": "User not found"
+      },
+      "timestamp": "2026-02-03T23:20:28.799Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770160848172",
+      "action": "LOGIN_FAILED",
+      "userId": "1",
+      "details": {
+        "reason": "Wrong password"
+      },
+      "timestamp": "2026-02-03T23:20:48.172Z",
+      "ip": "localhost"
+    },
+    {
+      "id": "1770160858228",
+      "action": "LOGIN_SUCCESS",
+      "userId": "1",
+      "details": {},
+      "timestamp": "2026-02-03T23:20:58.228Z",
       "ip": "localhost"
     }
   ],

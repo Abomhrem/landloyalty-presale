@@ -1,159 +1,105 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-const API_URL = 'http://localhost:3001/api';
-
-interface User {
-  id: string;
-  email: string;
-  role: 'super_admin' | 'admin' | 'developer' | 'viewer';
-  name: string;
-  permissions: string[];
-}
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  user: { email: string; role: string } | null;
   isAuthenticated: boolean;
-  hasPermission: (permission: string) => boolean;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   loading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
+};
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<{ email: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing token on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('admin_token');
-    if (storedToken) {
-      verifyToken(storedToken);
+    // Check for existing token
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      verifyToken(token);
     } else {
       setLoading(false);
     }
   }, []);
 
-  const verifyToken = async (tokenToVerify: string) => {
+  const verifyToken = async (token: string) => {
     try {
-      const response = await fetch(`${API_URL}/auth/verify`, {
-        headers: {
-          'Authorization': `Bearer ${tokenToVerify}`
-        }
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
       });
 
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
-        setToken(tokenToVerify);
       } else {
-        // Token invalid, clear it
-        localStorage.removeItem('admin_token');
+        localStorage.removeItem('auth_token');
       }
     } catch (error) {
-      console.error('Token verification failed:', error);
-      localStorage.removeItem('admin_token');
+      localStorage.removeItem('auth_token');
     } finally {
       setLoading(false);
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        localStorage.setItem('auth_token', data.token);
         setUser(data.user);
-        setToken(data.token);
-        localStorage.setItem('admin_token', data.token);
-        return true;
+        return { success: true };
       }
 
-      return false;
+      return { success: false, error: data.error || 'Login failed' };
     } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      return { success: false, error: 'Network error' };
     }
   };
 
   const logout = async () => {
     try {
-      if (token) {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
+      await fetch('/api/auth/logout', { method: 'POST' });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      localStorage.removeItem('auth_token');
       setUser(null);
-      setToken(null);
-      localStorage.removeItem('admin_token');
     }
   };
 
-  const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_URL}/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ currentPassword, newPassword })
-      });
-
-      return response.ok;
-    } catch (error) {
-      console.error('Change password error:', error);
-      return false;
-    }
-  };
-
-  const hasPermission = (permission: string): boolean => {
-    if (!user) return false;
-    if (user.permissions.includes('all')) return true;
-    return user.permissions.includes(permission);
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    // For now, return false - implement this later if needed
+    return false;
   };
 
   return (
     <AuthContext.Provider value={{
       user,
-      token,
+      isAuthenticated: !!user,
+      loading,
       login,
       logout,
-      isAuthenticated: !!user,
-      hasPermission,
-      changePassword,
-      loading
+      changePassword
     }}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
 };
