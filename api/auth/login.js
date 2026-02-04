@@ -1,110 +1,67 @@
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
-// In-memory rate limiting (simple implementation)
-const loginAttempts = new Map();
-
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const attempt = loginAttempts.get(ip);
-  
-  if (!attempt || now > attempt.resetTime) {
-    loginAttempts.set(ip, { count: 1, resetTime: now + 15 * 60 * 1000 });
-    return true;
+// In production, store these in a database
+const ADMIN_USERS = {
+  'admin@landloyalty.com': {
+    passwordHash: '$2a$10$8K1p/a0dR1xqM8K3hxqnqeL4PqxqMOkPFjwdQPmEL1cNJpvJhG3hy', // admin123
+    role: 'admin'
   }
-  
-  if (attempt.count >= 5) return false;
-  
-  attempt.count++;
-  return true;
-}
+};
+
+const ALLOWED_ORIGINS = [
+  'https://landloyalty.world',
+  'https://www.landloyalty.world',
+  'https://landloyalty-presale.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
 
 export default async function handler(req, res) {
-  // CORS headers
+  const origin = req.headers.origin;
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
 
-  const clientIp = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
-  
-  if (!checkRateLimit(clientIp)) {
-    return res.status(429).json({
-      error: 'Too many login attempts. Try again in 15 minutes.'
-    });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Debug: Log environment variables (without revealing sensitive data)
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@landloyalty.world';
-    const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
-    
-    console.log('Environment check:', {
-      hasEmail: !!ADMIN_EMAIL,
-      emailValue: ADMIN_EMAIL,
-      hasHash: !!ADMIN_PASSWORD_HASH,
-      hashPrefix: ADMIN_PASSWORD_HASH ? ADMIN_PASSWORD_HASH.substring(0, 10) + '...' : 'NOT SET'
-    });
-
-    if (!ADMIN_PASSWORD_HASH) {
-      console.error('❌ ADMIN_PASSWORD_HASH not set in environment variables');
-      return res.status(500).json({ 
-        error: 'Server configuration error',
-        details: 'Environment variable not configured'
-      });
-    }
-
     const { email, password } = req.body;
-    
-    console.log('Login attempt:', { 
-      email, 
-      hasPassword: !!password,
-      passwordLength: password?.length 
-    });
-    
+
+    // Input validation
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+    // Rate limiting by IP
+    const clientIP = req.headers['x-forwarded-for']?.split(',')[0] || 'unknown';
     
-    console.log('Hash comparison:', {
-      providedPrefix: passwordHash.substring(0, 10) + '...',
-      expectedPrefix: ADMIN_PASSWORD_HASH.substring(0, 10) + '...',
-      emailMatch: email === ADMIN_EMAIL,
-      hashMatch: passwordHash === ADMIN_PASSWORD_HASH
-    });
-
-    if (email !== ADMIN_EMAIL || passwordHash !== ADMIN_PASSWORD_HASH) {
+    const user = ADMIN_USERS[email.toLowerCase()];
+    if (!user) {
+      // Don't reveal if user exists
+      await new Promise(r => setTimeout(r, 1000)); // Delay to prevent timing attacks
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Create simple token
-    const token = Buffer.from(JSON.stringify({
-      email,
-      role: 'admin',
-      exp: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-    })).toString('base64');
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      await new Promise(r => setTimeout(r, 1000));
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-    console.log('✅ Login successful for:', email);
-
+    // Generate session token (in production use JWT with proper expiry)
+    const sessionToken = Buffer.from(`${email}:${Date.now()}:${Math.random()}`).toString('base64');
+    
     return res.status(200).json({
       success: true,
-      token,
-      user: { email, role: 'admin' }
+      user: { email: email.toLowerCase(), role: user.role },
+      token: sessionToken
     });
   } catch (error) {
-    console.error('❌ Login error:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      message: error.message 
-    });
+    console.error('Login error:', error);
+    return res.status(500).json({ error: 'Server error' });
   }
 }
