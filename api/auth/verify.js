@@ -1,4 +1,4 @@
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -33,4 +33,4 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });
   }
-};
+}
